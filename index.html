@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b2a1d" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Hand-Controlled Christmas Tree — Auto Hide UI</title>
+  <title>Hand Tree</title>
 
   <style>
     :root{
@@ -14,10 +14,13 @@
       --bg1:#0b2a1d;
       --gold:#c7a54f;
       --gold2:#ffd57a;
+      --red:#c0162b;
+      --green:#1f6b45;
       --ui:rgba(8,18,14,.55);
-      --ui2:rgba(10,26,19,.72);
-      --line:rgba(255,213,122,.20);
+      --ui2:rgba(10,26,19,.70);
+      --line:rgba(255,213,122,.22);
       --text:rgba(255,246,230,.92);
+      --muted:rgba(255,246,230,.72);
       --shadow: 0 18px 60px rgba(0,0,0,.55);
     }
     *{box-sizing:border-box}
@@ -37,30 +40,23 @@
       mix-blend-mode:overlay; opacity:.18;
     }
 
-    /* ===== HUD (可折叠/可隐藏) ===== */
+    /* 顶部小 HUD（默认启动后自动隐藏） */
     #hud{
-      position:absolute;
-      left:8px; top:8px;
-      width:min(420px, calc(100vw - 16px));
+      position:absolute; left:12px; top:12px;
+      width:min(420px, calc(100vw - 24px));
+      padding:10px 10px 8px;
       border:1px solid var(--line);
       border-radius:14px;
       background:linear-gradient(180deg, var(--ui2), var(--ui));
       box-shadow: var(--shadow);
       backdrop-filter: blur(10px);
       z-index:10;
-      overflow:hidden;
-      transition: opacity .18s ease, transform .18s ease;
     }
-    #hud.hud-hidden{
-      opacity:0;
-      transform: translateY(-6px);
-      pointer-events:none;
-    }
-    #hudHeader{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      padding:10px 10px;
+    #hud.hidden{ display:none; }
+
+    #hud .top{
+      display:flex; align-items:center; gap:8px;
+      font-weight:750; letter-spacing:.2px;
     }
     .dot{
       width:9px; height:9px; border-radius:999px;
@@ -68,138 +64,103 @@
       box-shadow: 0 0 12px rgba(255,213,122,.35);
       flex:0 0 auto;
     }
-    #hudTitle{
-      font-weight:780;
-      letter-spacing:.2px;
-      font-size:12px;
-      line-height:1.2;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width: 42vw;
-    }
-    #statusBadge{
+    #badge{
       margin-left:auto;
-      padding:5px 8px;
+      padding:6px 10px;
       border-radius:999px;
-      font-size:11px;
-      border:1px solid rgba(255,213,122,.16);
-      background:rgba(0,0,0,.20);
+      font-size:12px;
+      border:1px solid rgba(255,213,122,.20);
+      background:rgba(0,0,0,.22);
       color:rgba(255,246,230,.88);
       white-space:nowrap;
-      max-width: 44vw;
-      overflow:hidden;
-      text-overflow:ellipsis;
     }
-    #hudBody{
-      padding:10px 10px 12px;
-      border-top:1px solid rgba(255,255,255,.08);
-      display:none;
+    #hud .row{
+      margin-top:8px;
+      display:flex; flex-wrap:wrap; gap:8px; align-items:center;
     }
-    #hud.hud-open #hudBody{ display:block; }
-
-    .row{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
     .btn{
       cursor:pointer;
-      border:1px solid rgba(255,213,122,.20);
+      border:1px solid rgba(255,213,122,.26);
       background:linear-gradient(180deg, rgba(199,165,79,.14), rgba(192,22,43,.08));
       color:var(--text);
       padding:9px 10px;
       border-radius:12px;
-      font-weight:720;
+      font-weight:750;
       letter-spacing:.2px;
-      box-shadow: 0 10px 30px rgba(0,0,0,.20);
+      box-shadow: 0 10px 26px rgba(0,0,0,.25);
       transition: transform .12s ease, filter .12s ease;
-      font-size:12px;
     }
     .btn:hover{transform: translateY(-1px); filter:brightness(1.05)}
     .btn:active{transform: translateY(0px); filter:brightness(.98)}
     .btn.secondary{
       border-color: rgba(255,255,255,.12);
       background: rgba(255,255,255,.06);
-      font-weight:650;
+      font-weight:700;
       box-shadow:none;
     }
-    .btn.tiny{
-      padding:7px 9px;
-      font-size:12px;
-      box-shadow:none;
-      background: rgba(255,255,255,.06);
-      border-color: rgba(255,255,255,.12);
-    }
-
     input[type="file"]{display:none}
     label.file{
       cursor:pointer;
       display:inline-flex; align-items:center; gap:8px;
       padding:9px 10px;
       border-radius:12px;
-      border:1px solid rgba(255,213,122,.16);
+      border:1px solid rgba(255,213,122,.18);
       background:rgba(255,255,255,.06);
       font-size:12px;
       user-select:none;
     }
-    #hudHint{
+    .hint{
       margin-top:8px;
-      font-size:11px;
-      color:rgba(255,246,230,.70);
+      font-size:12px;
+      color:var(--muted);
       line-height:1.4;
     }
 
-    /* ===== 右上角“呼出菜单”按钮：HUD 隐藏时显示 ===== */
-    #fabMenu{
-      position:absolute;
-      right:10px;
-      top:10px;
+    /* 右上角呼出菜单按钮（始终可见） */
+    #menuBtn{
+      position:absolute; right:12px; top:12px;
       z-index:11;
-      width:40px;
-      height:40px;
-      border-radius:999px;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      border:1px solid rgba(255,213,122,.18);
-      background: rgba(0,0,0,.28);
-      backdrop-filter: blur(10px);
-      color: rgba(255,246,230,.92);
-      box-shadow: 0 14px 45px rgba(0,0,0,.45);
+      width:42px; height:42px;
+      border-radius:14px;
+      border:1px solid rgba(255,213,122,.20);
+      background:rgba(0,0,0,.28);
+      color:rgba(255,246,230,.92);
+      display:flex; align-items:center; justify-content:center;
+      font-size:18px;
+      box-shadow: var(--shadow);
       cursor:pointer;
       user-select:none;
-      font-weight:900;
-      font-size:18px;
-      line-height:1;
     }
-    #fabMenu.show{ display:flex; }
 
-    /* ===== Gate 更紧凑 ===== */
+    /* Gate */
     #gate{
       position:absolute; inset:0;
       display:flex; align-items:center; justify-content:center;
-      padding:14px;
-      background: radial-gradient(900px 500px at 50% 30%, rgba(255,213,122,.06), rgba(0,0,0,.65));
+      padding:16px;
+      background: radial-gradient(900px 500px at 50% 30%, rgba(255,213,122,.07), rgba(0,0,0,.65));
       z-index:9;
     }
     #gate .card{
-      width:min(520px, 94vw);
-      border-radius:18px;
-      padding:14px 14px 12px;
-      border:1px solid rgba(255,213,122,.20);
+      width:min(640px, 92vw);
+      border-radius:20px;
+      padding:16px 16px 14px;
+      border:1px solid rgba(255,213,122,.22);
       background:linear-gradient(180deg, rgba(10,26,19,.78), rgba(8,18,14,.58));
-      box-shadow: 0 20px 70px rgba(0,0,0,.62);
+      box-shadow: 0 24px 80px rgba(0,0,0,.65);
       backdrop-filter: blur(10px);
     }
-    #gate .card h1{margin:0; font-size:16px; letter-spacing:.2px}
-    #gate .card p{margin:8px 0 0; color:rgba(255,246,230,.72); line-height:1.45; font-size:12px}
-    #gate .actions{margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    #gate h1{margin:0; font-size:16px}
+    #gate p{margin:10px 0 0; font-size:13px; color:var(--muted); line-height:1.55}
+    #gate .actions{margin-top:12px; display:flex; gap:10px; flex-wrap:wrap}
 
-    /* debug cam */
+    /* Debug */
     #debugCam{
-      position:absolute; right:10px; bottom:10px;
-      width:min(280px, 46vw);
+      position:absolute; right:12px; bottom:12px;
+      width:min(320px, 52vw);
       aspect-ratio: 4 / 3;
-      border-radius:14px;
+      border-radius:16px;
       overflow:hidden;
-      border:1px solid rgba(255,213,122,.18);
+      border:1px solid rgba(255,213,122,.20);
       box-shadow: var(--shadow);
       background: rgba(0,0,0,.25);
       display:none;
@@ -207,7 +168,7 @@
     }
     #debugCam canvas{width:100%; height:100%; display:block;}
 
-    /* 错误弹层 */
+    /* Boot error overlay */
     #bootError{
       position:absolute; inset:0;
       display:none;
@@ -241,13 +202,13 @@
     }
 
     @media (max-width: 520px){
-      #hudTitle{max-width: 38vw}
-      #statusBadge{max-width: 48vw}
-      #fabMenu{right:8px; top:8px}
-      #debugCam{right:8px; bottom:8px}
+      #hud{left:10px; top:10px; width:calc(100vw - 20px)}
+      #menuBtn{right:10px; top:10px}
+      #debugCam{right:10px; bottom:10px}
     }
   </style>
 
+  <!-- ✅ importmap：解决 three 模块加载报错 -->
   <script type="importmap">
   {
     "imports": {
@@ -257,7 +218,7 @@
   }
   </script>
 
-  <script src="https://unpkg.com/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+  <!-- MediaPipe（保持你现在可用的 CDN） -->
   <script src="https://unpkg.com/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 </head>
@@ -267,38 +228,41 @@
     <canvas id="gl"></canvas>
     <div id="grain"></div>
 
-    <!-- HUD -->
-    <div id="hud" class="hud-open">
-      <div id="hudHeader">
-        <span class="dot"></span>
-        <div id="hudTitle">🎄 Hand Tree</div>
-        <div class="badge" id="statusBadge">S:CONE · G:— · CAM:OFF · P:0</div>
-        <button class="btn tiny" id="hudToggle">收起</button>
-      </div>
-      <div id="hudBody">
-        <div class="row">
-          <button class="btn" id="startBtn">开始(摄像头)</button>
-          <button class="btn secondary" id="watchBtn">仅观看</button>
-          <label class="file" for="photosInput">上传
-            <input id="photosInput" type="file" accept="image/*" multiple />
-          </label>
-          <button class="btn secondary" id="toggleDebug">调试</button>
-        </div>
-        <div id="hudHint">握拳=合拢｜张开=散开｜捏合=放大</div>
-      </div>
-    </div>
+    <div id="menuBtn" title="打开菜单">☰</div>
 
-    <!-- 右上角呼出按钮 -->
-    <div id="fabMenu" aria-label="Open menu">☰</div>
+    <div id="hud">
+      <div class="top">
+        <span class="dot"></span>
+        <div>手势圣诞树</div>
+        <div id="badge">S:CONE · G:— · CAM:OFF · P:0</div>
+      </div>
+
+      <div class="row">
+        <button class="btn" id="startBtn">开始(摄像头)</button>
+        <button class="btn secondary" id="watchBtn">仅观看</button>
+
+        <label class="file" for="photosInput">上传
+          <input id="photosInput" type="file" accept="image/*" multiple />
+        </label>
+
+        <button class="btn secondary" id="toggleDebug">调试</button>
+        <button class="btn secondary" id="hideHudBtn">收起</button>
+      </div>
+
+      <div class="hint">握拳=合拢｜张开=散开｜捏合=放大｜散开时转手掌=旋转视角</div>
+    </div>
 
     <div id="debugCam"><canvas id="debug2d"></canvas></div>
 
     <div id="gate">
       <div class="card">
-        <h1>🎄 手势圣诞树</h1>
-        <p>开始后 UI 会自动隐藏，右上角 ☰ 可呼出菜单。</p>
+        <h1>🎄 用手势控制圣诞树</h1>
+        <p>
+          默认加载同目录 <b>pic1.jpg ~ pic8.jpg</b>。<br/>
+          点击“开始(摄像头)”后，菜单会自动隐藏；右上角 ☰ 可随时呼出。
+        </p>
         <div class="actions">
-          <button class="btn" id="gateStart">开始</button>
+          <button class="btn" id="gateStart">开始(摄像头)</button>
           <button class="btn secondary" id="gateNoCam">仅观看</button>
         </div>
       </div>
@@ -310,50 +274,13 @@
         <p id="bootErrorMsg"></p>
         <pre id="bootErrorDetail"></pre>
         <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap">
-          <button class="btn secondary" onclick="location.reload()">🔁 刷新重试</button>
+          <button class="btn secondary" onclick="location.reload()">刷新重试</button>
         </div>
       </div>
     </div>
 
     <video id="video" playsinline muted style="display:none"></video>
   </div>
-
-  <!-- UI 控制（不涉及 three） -->
-  <script>
-    const hud = document.getElementById("hud");
-    const hudToggle = document.getElementById("hudToggle");
-    const fabMenu = document.getElementById("fabMenu");
-
-    function hideHud(){
-      hud.classList.add("hud-hidden");
-      fabMenu.classList.add("show");
-    }
-    function showHud(){
-      hud.classList.remove("hud-hidden");
-      fabMenu.classList.remove("show");
-    }
-    function setHudOpen(open){
-      hud.classList.toggle("hud-open", open);
-      hudToggle.textContent = open ? "收起" : "展开";
-    }
-
-    // 头部按钮只负责折叠（不隐藏）
-    let hudOpen = true;
-    hudToggle.addEventListener("click", ()=>{
-      hudOpen = !hudOpen;
-      setHudOpen(hudOpen);
-    });
-
-    // 右上角 ☰：显示 HUD 并自动展开
-    fabMenu.addEventListener("click", ()=>{
-      showHud();
-      hudOpen = true;
-      setHudOpen(true);
-    });
-
-    // 暴露给 module 里调用：点击开始后自动隐藏 HUD
-    window.__UI__ = { hideHud, showHud, setHudOpen };
-  </script>
 
   <script type="module">
     import * as THREE from "three";
@@ -363,16 +290,20 @@
     import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 
     const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-    const damp = (a, b, lambda, dt) => THREE.MathUtils.damp(a, b, lambda, dt);
+    const damp  = (a, b, lambda, dt) => THREE.MathUtils.damp(a, b, lambda, dt);
 
     const STATE = { CONE:"CONE", SCATTER:"SCATTER", PHOTO:"PHOTO" };
     let state = STATE.CONE;
     let selectedPhoto = null;
-    let camState = "OFF";
+    let camState = "OFF"; // OFF / REQ / ON / DENIED / ERR
+    let started = false;
 
-    const badge = document.getElementById("statusBadge");
+    const hud = document.getElementById("hud");
+    const badgeEl = document.getElementById("badge");
+    const gate = document.getElementById("gate");
+
     function setBadge(gestureLabel="—"){
-      badge.textContent = `S:${state} · G:${gestureLabel} · CAM:${camState} · P:${photoPlanes.length}`;
+      badgeEl.textContent = `S:${state} · G:${gestureLabel} · CAM:${camState} · P:${photoPlanes.length}`;
     }
 
     const bootError = document.getElementById("bootError");
@@ -382,10 +313,17 @@
       bootErrorMsg.textContent = msg;
       bootErrorDetail.textContent = detail || "";
       bootError.style.display = "flex";
-      // 出错时把 HUD 叫回来方便操作
-      window.__UI__?.showHud?.();
     }
 
+    // UI: 自动隐藏 / 右上角呼出
+    function hideHud(){ hud.classList.add("hidden"); }
+    function showHud(){ hud.classList.remove("hidden"); }
+    document.getElementById("hideHudBtn").addEventListener("click", hideHud);
+    document.getElementById("menuBtn").addEventListener("click", ()=>{
+      hud.classList.contains("hidden") ? showHud() : hideHud();
+    });
+
+    // ---------- renderer / scene ----------
     const canvas = document.getElementById("gl");
     const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -448,6 +386,7 @@
         uniform float uVig;
         uniform float uGrain;
         varying vec2 vUv;
+
         float hash(vec2 p){
           p = fract(p*vec2(123.34, 345.45));
           p += dot(p, p+34.345);
@@ -509,6 +448,7 @@
       );
     }
 
+    // candy stripe texture
     function makeStripeTexture(){
       const c = document.createElement("canvas");
       c.width = 128; c.height = 32;
@@ -633,6 +573,7 @@
       spin: 1.2
     });
 
+    // topper star
     function makeStar(){
       const starShape = new THREE.Shape();
       const spikes = 5, outer = 0.62, inner = 0.28;
@@ -661,6 +602,7 @@
     const star = makeStar();
     ROOT.add(star);
 
+    // sparkle particles
     const particleCount = 2300;
     const pGeo = new THREE.BufferGeometry();
     const pPos = new Float32Array(particleCount*3);
@@ -724,6 +666,7 @@
     const sparkle = new THREE.Points(pGeo, pMat);
     ROOT.add(sparkle);
 
+    // photos cloud
     const photoGroup = new THREE.Group();
     ROOT.add(photoGroup);
 
@@ -731,17 +674,21 @@
     const photoRay = new THREE.Raycaster();
     const photoNDC = new THREE.Vector2();
 
-    const DEFAULT_PHOTO_URLS = Array.from({length:8}, (_,i)=>`./pic${i+1}.jpg`);
+    // ✅ 本地 8 张图（与 index.html 同目录）
+    const BASE = new URL(".", location.href);
+    const DEFAULT_PHOTO_URLS = Array.from({length:8}, (_,i)=>new URL(`pic${i+1}.jpg`, BASE).toString());
 
-    function makeProceduralPhoto(){
+    function makeProceduralPhoto(i){
       const c = document.createElement("canvas");
       c.width = 512; c.height = 640;
       const g = c.getContext("2d");
+
       const grad = g.createLinearGradient(0,0,512,640);
       grad.addColorStop(0, "#0b2a1d");
       grad.addColorStop(1, "#1f6b45");
       g.fillStyle = grad;
       g.fillRect(0,0,512,640);
+
       g.globalCompositeOperation = "screen";
       for(let k=0;k<12;k++){
         const x = Math.random()*512, y = Math.random()*640;
@@ -750,6 +697,20 @@
         g.fillStyle = `rgba(255,213,122,${a})`;
         g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill();
       }
+
+      g.globalCompositeOperation = "source-over";
+      for(let k=0;k<130;k++){
+        const x = Math.random()*512, y = Math.random()*640;
+        const s = Math.random()*2.2;
+        g.fillStyle = `rgba(255,246,230,${0.15+Math.random()*0.35})`;
+        g.beginPath(); g.arc(x,y,s,0,Math.PI*2); g.fill();
+      }
+
+      g.fillStyle = "rgba(255,246,230,.88)";
+      g.font = "700 36px system-ui, -apple-system, Segoe UI, sans-serif";
+      g.fillText("Merry", 28, 64);
+      g.fillText("Christmas", 28, 108);
+
       const tex = new THREE.CanvasTexture(c);
       tex.colorSpace = THREE.SRGBColorSpace;
       return tex;
@@ -779,7 +740,16 @@
       const scatterP = randomInShell(2.7, 9.5);
       scatterP.y = THREE.MathUtils.clamp(scatterP.y, -1.2, 6.5);
 
-      const item = { mesh: m, p: coneP.clone(), tp: coneP.clone(), s:1, ts:1, coneP, scatterP };
+      const item = {
+        mesh: m,
+        p: coneP.clone(),
+        tp: coneP.clone(),
+        s: 1.0,
+        ts: 1.0,
+        coneP,
+        scatterP
+      };
+
       m.position.copy(item.p);
       m.lookAt(0, item.p.y, 0);
 
@@ -802,17 +772,20 @@
     async function preloadDefaultPhotos(){
       const holders = [];
       for(let i=0;i<DEFAULT_PHOTO_URLS.length;i++){
-        holders.push(addPhotoTexture(makeProceduralPhoto()));
+        holders.push(addPhotoTexture(makeProceduralPhoto(i)));
       }
       for(let i=0;i<DEFAULT_PHOTO_URLS.length;i++){
         try{
           const tex = await loadTextureFromUrl(DEFAULT_PHOTO_URLS[i]);
           holders[i].mesh.material.map = tex;
           holders[i].mesh.material.needsUpdate = true;
-        }catch{}
+        }catch{
+          // 保留占位
+        }
       }
     }
 
+    // upload extra photos
     const photosInput = document.getElementById("photosInput");
     photosInput.addEventListener("change", async (e)=>{
       const files = [...(e.target.files||[])].slice(0, 30);
@@ -828,6 +801,7 @@
       retargetAll();
     });
 
+    // layout
     function resize(){
       const w = innerWidth, h = innerHeight;
       renderer.setSize(w,h);
@@ -838,6 +812,7 @@
     }
     addEventListener("resize", resize);
 
+    // state
     function setState(next, opts={}){
       state = next;
       if(state !== STATE.PHOTO) selectedPhoto = null;
@@ -867,18 +842,26 @@
           it.tq.setFromEuler(pack.tmpE);
         }
       }
+
       for(const ph of photoPlanes){
-        ph.tp.copy(state === STATE.CONE ? ph.coneP : ph.scatterP);
-        ph.ts = (state === STATE.CONE) ? 0.92 : 1.0;
+        if(state === STATE.CONE){
+          ph.tp.copy(ph.coneP);
+          ph.ts = 0.92;
+        }else{
+          ph.tp.copy(ph.scatterP);
+          ph.ts = 1.0;
+        }
       }
     }
 
+    // camera orbit
     const orbit = { theta: 0, phi: 1.12, r: 14, tTheta: 0, tPhi: 1.12, tR: 14 };
     function updateCamera(dt){
       orbit.theta = damp(orbit.theta, orbit.tTheta, 9, dt);
       orbit.phi   = damp(orbit.phi,   orbit.tPhi,   9, dt);
       orbit.r     = damp(orbit.r,     orbit.tR,     8, dt);
       orbit.phi = clamp(orbit.phi, 0.35, 1.45);
+
       const x = orbit.r * Math.cos(orbit.theta) * Math.sin(orbit.phi);
       const z = orbit.r * Math.sin(orbit.theta) * Math.sin(orbit.phi);
       const y = orbit.r * Math.cos(orbit.phi) + 0.8;
@@ -886,20 +869,18 @@
       camera.lookAt(0, 1.6, 0);
     }
 
-    // debug
+    // mediapipe
+    const video = document.getElementById("video");
     const debugWrap = document.getElementById("debugCam");
     const debugCanvas = document.getElementById("debug2d");
     const dbg = debugCanvas.getContext("2d");
+
+    let mpHands = null;
     let debugOn = false;
     document.getElementById("toggleDebug").addEventListener("click", ()=>{
       debugOn = !debugOn;
       debugWrap.style.display = debugOn ? "block" : "none";
     });
-
-    // mediapipe
-    const video = document.getElementById("video");
-    let mpCamera = null;
-    let mpHands = null;
 
     const hand = {
       present:false, handedness:"Right", lm:null,
@@ -909,10 +890,12 @@
       _lastPinch:false,
       _rollPrev:null
     };
+
     const lmGet = (i)=>hand.lm?.[i] || null;
     const dist2 = (a,b)=>Math.hypot(a.x-b.x, a.y-b.y);
     function fingerExtended(tip, pip){ return tip.y < pip.y - 0.02; }
 
+    // ✅ 关键修复：PALM/FIST 优先于 PINCH（避免 PINCH 抢占导致状态卡住）
     function detectGesture(){
       const lm = hand.lm;
       if(!lm) return "—";
@@ -938,16 +921,18 @@
       const midMcp = lm[9];
       const handSize = Math.max(0.001, dist2(wrist, midMcp));
       const pinchD = dist2(thumbTip, idxTip);
-      const pinch = pinchD < handSize * 0.45;
+
+      // 稍微收紧一点，减少误判（你也可以改成 0.33 / 0.35）
+      const pinch = pinchD < handSize * 0.38;
 
       hand.pinch = pinch;
       hand.pinchDown = (!hand._lastPinch && pinch);
       hand.pinchUp = (hand._lastPinch && !pinch);
       hand._lastPinch = pinch;
 
-      if(pinch) return "PINCH";
       if(allOpen) return "PALM";
       if(allClosed) return "FIST";
+      if(pinch) return "PINCH";
       return "MOVE";
     }
 
@@ -993,14 +978,27 @@
       }
     }
 
+    // 用 RAF 驱动 Hands.send（避免 Camera 工具双重 getUserMedia）
+    let frameBusy = false;
+    function startHandLoop(){
+      const loop = async ()=>{
+        if(!mpHands) return;
+        if(video.readyState >= 2 && !frameBusy){
+          frameBusy = true;
+          try{ await mpHands.send({ image: video }); }catch{}
+          frameBusy = false;
+        }
+        requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+    }
+
     async function initMediaPipe(){
-      if(typeof Hands === "undefined" || typeof Camera === "undefined"){
-        camState = "ERR";
-        setBadge(hand?.gesture || "—");
-        showBootError("MediaPipe 未加载成功", "Hands/Camera 全局对象不存在。");
+      if(typeof Hands === "undefined"){
+        camState = "ERR"; setBadge(hand?.gesture || "—");
+        showBootError("MediaPipe 未加载成功", "Hands 全局对象不存在（可能 CDN 被拦或网络问题）。");
         return;
       }
-
       mpHands = new Hands({
         locateFile: (file) => `https://unpkg.com/@mediapipe/hands@0.4.1675469240/${file}`
       });
@@ -1011,15 +1009,10 @@
         minTrackingConfidence: 0.72
       });
       mpHands.onResults(onResults);
-
-      mpCamera = new Camera(video, {
-        onFrame: async () => { await mpHands.send({ image: video }); },
-        width: 640,
-        height: 480
-      });
-      mpCamera.start();
+      startHandLoop();
     }
 
+    // pinch pick photo
     function raycastPhotoFromHand(){
       const tip = lmGet(8);
       if(!tip) return null;
@@ -1041,11 +1034,15 @@
         if(ph) setState(STATE.PHOTO, {photo: ph});
       }
     });
+
     addEventListener("keydown", (e)=>{
       if(e.key === "1") setState(STATE.CONE);
       if(e.key === "2") setState(STATE.SCATTER);
       if(e.key === "Escape") setState(STATE.SCATTER);
     });
+
+    // animation
+    const clock = new THREE.Clock();
 
     function updateInstanced(pack, dt){
       const m = pack.mesh;
@@ -1137,12 +1134,14 @@
       hand.gesture = g;
       setBadge(hand.gesture);
 
+      // 状态切换
       if(g === "FIST"){
         if(state !== STATE.CONE) setState(STATE.CONE);
       }else if(g === "PALM"){
         if(state !== STATE.SCATTER) setState(STATE.SCATTER);
       }
 
+      // 捏合放大
       if(hand.pinchDown){
         const ph = raycastPhotoFromHand();
         if(ph) setState(STATE.PHOTO, {photo: ph});
@@ -1151,6 +1150,7 @@
         if(state === STATE.PHOTO) setState(STATE.SCATTER);
       }
 
+      // 旋转视角：只在散开/放大态
       if(state !== STATE.CONE){
         orbit.tPhi = 0.85 + (0.5 - hand.palm.y) * 0.95;
         orbit.tPhi = clamp(orbit.tPhi, 0.4, 1.35);
@@ -1168,9 +1168,9 @@
       }
     }
 
-    const clock = new THREE.Clock();
     function tick(){
       const dt = Math.min(0.033, clock.getDelta());
+
       updateGestures(dt);
       updateCamera(dt);
 
@@ -1187,38 +1187,32 @@
       requestAnimationFrame(tick);
     }
 
-    // ===== 启动：点击开始后自动隐藏 HUD =====
-    const gate = document.getElementById("gate");
-    const gateStart = document.getElementById("gateStart");
-    const gateNoCam = document.getElementById("gateNoCam");
-    const startBtn = document.getElementById("startBtn");
-    const watchBtn = document.getElementById("watchBtn");
-
-    let started = false;
+    async function ensureStarted(){
+      if(started) return;
+      await preloadDefaultPhotos();
+      retargetAll();
+      resize();
+      tick();
+      started = true;
+    }
 
     async function start(withCamera=true){
       try{
         gate.style.display = "none";
+        await ensureStarted();
 
-        // ✅ 开始就隐藏 HUD（你想“仅观看”不隐藏的话，把下面 if(withCamera) 包起来即可）
-        window.__UI__?.hideHud?.();
-
-        if(!started){
-          await preloadDefaultPhotos();
-          retargetAll();
-          resize();
-          tick();
-          started = true;
-        }
+        // ✅ 启动后自动隐藏 UI（你要的效果）
+        hideHud();
 
         if(withCamera){
           if(!navigator.mediaDevices?.getUserMedia){
             camState = "ERR"; setBadge(hand?.gesture || "—");
-            showBootError("不支持摄像头/需要 HTTPS", "navigator.mediaDevices.getUserMedia 不存在");
+            showBootError("浏览器不支持摄像头或需要 HTTPS", "navigator.mediaDevices.getUserMedia 不存在");
             return;
           }
 
           camState = "REQ"; setBadge(hand?.gesture || "—");
+
           navigator.mediaDevices.getUserMedia({
             video: { facingMode: "user", width: {ideal: 640}, height: {ideal: 480} },
             audio: false
@@ -1229,21 +1223,21 @@
             await initMediaPipe();
           }).catch((err)=>{
             camState = "DENIED"; setBadge(hand?.gesture || "—");
-            showBootError("摄像头被拒绝（仍可观看）", String(err && (err.stack || err.message || err)));
+            showBootError("摄像头权限被拒绝/失败（仍可仅观看）", String(err && (err.stack || err.message || err)));
           });
         }else{
-          camState = "OFF";
-          setBadge(hand?.gesture || "—");
+          camState = "OFF"; setBadge(hand?.gesture || "—");
         }
       }catch(e){
         showBootError("启动失败", String(e && (e.stack || e.message || e)));
       }
     }
 
-    gateStart.addEventListener("click", ()=>start(true));
-    gateNoCam.addEventListener("click", ()=>start(false));
-    startBtn.addEventListener("click", ()=>start(true));
-    watchBtn.addEventListener("click", ()=>start(false));
+    // buttons
+    document.getElementById("gateStart").addEventListener("click", ()=>start(true));
+    document.getElementById("gateNoCam").addEventListener("click", ()=>start(false));
+    document.getElementById("startBtn").addEventListener("click", ()=>start(true));
+    document.getElementById("watchBtn").addEventListener("click", ()=>start(false));
 
     setBadge("—");
   </script>
