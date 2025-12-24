@@ -193,12 +193,6 @@
       white-space: pre-wrap;
       word-break: break-word;
     }
-
-    @media (max-width: 520px){
-      #hud{left:10px; top:10px; width:calc(100vw - 20px)}
-      #menuBtn{right:10px; top:10px}
-      #debugCam{right:10px; bottom:10px}
-    }
   </style>
 
   <script type="importmap">
@@ -230,7 +224,7 @@
 
       <div class="row">
         <button class="btn" id="startBtn">开始(摄像头)</button>
-        <button class="btn secondary" id="watchBtn">仅观看</button>
+        <button class="btn secondary" id="watchBtn">仅观看(自动巡游)</button>
 
         <label class="file" for="photosInput">上传
           <input id="photosInput" type="file" accept="image/*" multiple />
@@ -250,11 +244,11 @@
         <h1>🎄 用手势控制圣诞树</h1>
         <p>
           默认加载同目录 <b>pic1.jpg ~ pic8.jpg</b>。<br/>
-          点击“开始(摄像头)”后，菜单会自动隐藏；右上角 ☰ 可随时呼出。
+          “仅观看”会自动旋转视角并依次放大每张照片（轮播）。
         </p>
         <div class="actions">
           <button class="btn" id="gateStart">开始(摄像头)</button>
-          <button class="btn secondary" id="gateNoCam">仅观看</button>
+          <button class="btn secondary" id="gateNoCam">仅观看(自动巡游)</button>
         </div>
       </div>
     </div>
@@ -288,6 +282,16 @@
     let selectedPhoto = null;
     let camState = "OFF";
     let started = false;
+
+    // ✅ 仅观看自动巡游
+    let watchTour = false;
+    let tourPhase = "PHOTO"; // PHOTO / GAP
+    let tourIndex = 0;
+    let tourTimer = 0;
+
+    const TOUR_PHOTO_SECONDS = 2.6; // 每张图放大停留时间
+    const TOUR_GAP_SECONDS   = 0.45; // 图与图之间散开过渡时间
+    const TOUR_ROT_SPEED     = 0.18; // 自动旋转速度（越大越快）
 
     const hud = document.getElementById("hud");
     const badgeEl = document.getElementById("badge");
@@ -666,7 +670,9 @@
       return tex;
     }
 
-    // ✅ 照片更亮：emissiveMap + toneMapped=false
+    // ✅ 照片亮度：保持亮，但“放大时不额外增亮”
+    const PHOTO_EMISSIVE = 1.85;
+
     function addPhotoTexture(tex){
       const aspect = 4/5;
       const w = 1.25;
@@ -681,7 +687,7 @@
         clearcoatRoughness: 0.10,
         emissive: new THREE.Color(0xffffff),
         emissiveMap: tex,
-        emissiveIntensity: 1.55
+        emissiveIntensity: PHOTO_EMISSIVE
       });
       mat.toneMapped = false;
 
@@ -844,10 +850,9 @@
     const dist2 = (a,b)=>Math.hypot(a.x-b.x, a.y-b.y);
     function fingerExtended(tip, pip){ return tip.y < pip.y - 0.02; }
 
-    // ✅ 捏合阈值：更容易触发（0.56）
+    // ✅ 更容易捏合
     const PINCH_T = 0.56;
 
-    // ✅ PINCH 覆盖握拳/张开（解决你说的“总被判成握拳/张开”）
     function detectGesture(){
       const lm = hand.lm;
       if(!lm) return "—";
@@ -881,6 +886,7 @@
       hand.pinchUp = (hand._lastPinch && !pinch);
       hand._lastPinch = pinch;
 
+      // PINCH 优先级最高
       if(pinch) return "PINCH";
       if(allOpen) return "PALM";
       if(allClosed) return "FIST";
@@ -1021,6 +1027,7 @@
       m.instanceMatrix.needsUpdate = true;
     }
 
+    // ✅ 放大时不额外增亮：emissiveIntensity 始终保持 PHOTO_EMISSIVE
     function facePhotos(dt){
       for(const ph of photoPlanes){
         if(state === STATE.CONE){
@@ -1054,14 +1061,9 @@
           ph.mesh.lookAt(camera.position);
         }
 
-        // ✅ 放大时更亮一些
+        // 恒定亮度
         const mat = ph.mesh.material;
-        if(mat){
-          mat.emissiveIntensity =
-            (state === STATE.PHOTO)
-              ? (ph === selectedPhoto ? 2.10 : 1.25)
-              : 1.55;
-        }
+        if(mat) mat.emissiveIntensity = PHOTO_EMISSIVE;
       }
     }
 
@@ -1080,9 +1082,6 @@
       if(!hand.present || !hand.lm){
         hand.gesture = "—";
         setBadge(hand.gesture);
-        orbit.tTheta = damp(orbit.tTheta, 0, 1.2, dt);
-        orbit.tPhi   = damp(orbit.tPhi,   1.12, 1.2, dt);
-        orbit.tR     = damp(orbit.tR,     14, 1.2, dt);
         return;
       }
 
@@ -1122,10 +1121,44 @@
       }
     }
 
+    // ✅ 仅观看自动巡游逻辑：旋转视角 + 轮流放大每张照片
+    function updateWatchTour(dt){
+      if(!watchTour) return;
+      if(photoPlanes.length === 0) return;
+
+      // 自动旋转视角
+      orbit.tTheta += dt * TOUR_ROT_SPEED;
+
+      tourTimer += dt;
+
+      if(tourPhase === "PHOTO"){
+        const ph = photoPlanes[tourIndex % photoPlanes.length];
+        if(state !== STATE.PHOTO || selectedPhoto !== ph){
+          setState(STATE.PHOTO, {photo: ph});
+        }
+        if(tourTimer >= TOUR_PHOTO_SECONDS){
+          tourPhase = "GAP";
+          tourTimer = 0;
+          setState(STATE.SCATTER);
+        }
+      }else{ // GAP
+        if(tourTimer >= TOUR_GAP_SECONDS){
+          tourPhase = "PHOTO";
+          tourTimer = 0;
+          tourIndex = (tourIndex + 1) % photoPlanes.length;
+          setState(STATE.PHOTO, {photo: photoPlanes[tourIndex]});
+        }
+      }
+    }
+
     function tick(){
       const dt = Math.min(0.033, clock.getDelta());
 
-      updateGestures(dt);
+      // 有摄像头才用手势更新；仅观看则走巡游
+      if(camState === "ON") updateGestures(dt);
+      else setBadge("—");
+
+      updateWatchTour(dt);
       updateCamera(dt);
 
       updateInstanced(ornamentsGold, dt);
@@ -1156,29 +1189,39 @@
         await ensureStarted();
         hideHud();
 
+        // 重置巡游状态
+        watchTour = !withCamera;
+        tourPhase = "PHOTO";
+        tourIndex = 0;
+        tourTimer = 0;
+
         if(withCamera){
+          watchTour = false;
           if(!navigator.mediaDevices?.getUserMedia){
-            camState = "ERR"; setBadge(hand?.gesture || "—");
+            camState = "ERR"; setBadge("—");
             showBootError("浏览器不支持摄像头或需要 HTTPS", "navigator.mediaDevices.getUserMedia 不存在");
             return;
           }
 
-          camState = "REQ"; setBadge(hand?.gesture || "—");
+          camState = "REQ"; setBadge("—");
 
           navigator.mediaDevices.getUserMedia({
             video: { facingMode: "user", width: {ideal: 640}, height: {ideal: 480} },
             audio: false
           }).then(async (stream)=>{
-            camState = "ON"; setBadge(hand?.gesture || "—");
+            camState = "ON"; setBadge("—");
             video.srcObject = stream;
             await video.play();
             await initMediaPipe();
           }).catch((err)=>{
-            camState = "DENIED"; setBadge(hand?.gesture || "—");
+            camState = "DENIED"; setBadge("—");
             showBootError("摄像头权限被拒绝/失败（仍可仅观看）", String(err && (err.stack || err.message || err)));
           });
         }else{
-          camState = "OFF"; setBadge(hand?.gesture || "—");
+          camState = "OFF";
+          setBadge("—");
+          // 让它先散开，再开始巡游
+          setState(STATE.SCATTER);
         }
       }catch(e){
         showBootError("启动失败", String(e && (e.stack || e.message || e)));
