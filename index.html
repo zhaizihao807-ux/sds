@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b2a1d" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Hand-Controlled Christmas Tree — THREE.js + MediaPipe Hands</title>
+  <title>Hand-Controlled Christmas Tree — Compact UI</title>
 
   <style>
     :root{
@@ -17,8 +17,8 @@
       --red:#c0162b;
       --green:#1f6b45;
       --ui:rgba(8,18,14,.55);
-      --ui2:rgba(10,26,19,.70);
-      --line:rgba(255,213,122,.22);
+      --ui2:rgba(10,26,19,.72);
+      --line:rgba(255,213,122,.20);
       --text:rgba(255,246,230,.92);
       --muted:rgba(255,246,230,.70);
       --shadow: 0 18px 60px rgba(0,0,0,.55);
@@ -37,40 +37,78 @@
     #grain{
       pointer-events:none; position:absolute; inset:0;
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E");
-      mix-blend-mode:overlay; opacity:.20;
+      mix-blend-mode:overlay; opacity:.18;
     }
 
+    /* ======= Compact HUD ======= */
     #hud{
-      position:absolute; left:14px; top:14px;
-      width:min(560px, calc(100vw - 28px));
-      padding:14px 14px 12px;
+      position:absolute;
+      left:10px; top:10px;
+      width:min(420px, calc(100vw - 20px));
       border:1px solid var(--line);
       border-radius:16px;
       background:linear-gradient(180deg, var(--ui2), var(--ui));
       box-shadow: var(--shadow);
       backdrop-filter: blur(10px);
       z-index:10;
+      overflow:hidden;
     }
-    #hud .title{display:flex; align-items:center; gap:10px; font-weight:750; letter-spacing:.3px}
+    #hudHeader{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 10px;
+    }
     .dot{
-      width:10px; height:10px; border-radius:999px;
+      width:9px; height:9px; border-radius:999px;
       background: radial-gradient(circle at 30% 30%, var(--gold2), var(--gold));
-      box-shadow: 0 0 14px rgba(255,213,122,.40);
+      box-shadow: 0 0 12px rgba(255,213,122,.35);
+      flex:0 0 auto;
     }
-    #hud .sub{margin-top:6px; font-size:12px; color:var(--muted); line-height:1.45}
-    #hud .row{margin-top:10px; display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+    #hudTitle{
+      font-weight:780;
+      letter-spacing:.2px;
+      font-size:13px;
+      line-height:1.2;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 48vw;
+    }
+    #statusBadge{
+      margin-left:auto;
+      padding:5px 8px;
+      border-radius:999px;
+      font-size:11px;
+      border:1px solid rgba(255,213,122,.16);
+      background:rgba(0,0,0,.20);
+      color:rgba(255,246,230,.88);
+      white-space:nowrap;
+      max-width: 42vw;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
 
+    #hudBody{
+      padding:10px 10px 12px;
+      border-top:1px solid rgba(255,255,255,.08);
+      display:none; /* 默认折叠 */
+    }
+    #hud.hud-open #hudBody{ display:block; }
+
+    .row{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
     .btn{
       cursor:pointer;
-      border:1px solid rgba(255,213,122,.26);
+      border:1px solid rgba(255,213,122,.20);
       background:linear-gradient(180deg, rgba(199,165,79,.14), rgba(192,22,43,.08));
       color:var(--text);
-      padding:10px 12px;
+      padding:9px 10px;
       border-radius:12px;
-      font-weight:700;
+      font-weight:720;
       letter-spacing:.2px;
-      box-shadow: 0 10px 30px rgba(0,0,0,.28);
+      box-shadow: 0 10px 30px rgba(0,0,0,.24);
       transition: transform .12s ease, filter .12s ease;
+      font-size:12px;
     }
     .btn:hover{transform: translateY(-1px); filter:brightness(1.05)}
     .btn:active{transform: translateY(0px); filter:brightness(.98)}
@@ -80,62 +118,61 @@
       font-weight:650;
       box-shadow:none;
     }
+    .btn.tiny{
+      padding:7px 9px;
+      font-size:12px;
+      box-shadow:none;
+      background: rgba(255,255,255,.06);
+      border-color: rgba(255,255,255,.12);
+    }
+
     input[type="file"]{display:none}
     label.file{
       cursor:pointer;
       display:inline-flex; align-items:center; gap:8px;
-      padding:10px 12px;
+      padding:9px 10px;
       border-radius:12px;
-      border:1px solid rgba(255,213,122,.18);
+      border:1px solid rgba(255,213,122,.16);
       background:rgba(255,255,255,.06);
       font-size:12px;
       user-select:none;
     }
-
-    .badge{
-      margin-left:auto;
-      padding:6px 10px;
-      border-radius:999px;
-      font-size:12px;
-      border:1px solid rgba(255,213,122,.20);
-      background:rgba(0,0,0,.22);
-      color:rgba(255,246,230,.88);
-      white-space:nowrap;
+    #hudHint{
+      margin-top:8px;
+      font-size:11px;
+      color:rgba(255,246,230,.70);
+      line-height:1.4;
     }
 
+    /* ======= Compact Gate ======= */
     #gate{
       position:absolute; inset:0;
       display:flex; align-items:center; justify-content:center;
-      padding:18px;
-      background: radial-gradient(900px 500px at 50% 30%, rgba(255,213,122,.07), rgba(0,0,0,.65));
+      padding:14px;
+      background: radial-gradient(900px 500px at 50% 30%, rgba(255,213,122,.06), rgba(0,0,0,.65));
       z-index:9;
     }
     #gate .card{
-      width:min(720px, 92vw);
-      border-radius:22px;
-      padding:18px 18px 16px;
-      border:1px solid rgba(255,213,122,.22);
+      width:min(520px, 94vw);
+      border-radius:18px;
+      padding:14px 14px 12px;
+      border:1px solid rgba(255,213,122,.20);
       background:linear-gradient(180deg, rgba(10,26,19,.78), rgba(8,18,14,.58));
-      box-shadow: 0 24px 80px rgba(0,0,0,.65);
+      box-shadow: 0 20px 70px rgba(0,0,0,.62);
       backdrop-filter: blur(10px);
     }
-    #gate .card h1{margin:0; font-size:18px; letter-spacing:.2px}
-    #gate .card p{margin:10px 0 0; color:var(--muted); line-height:1.55; font-size:13px}
-    #gate .card .actions{margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-    #gate .note{
-      margin-top:10px;
-      font-size:12px; color:rgba(255,246,230,.66);
-      border-top:1px dashed rgba(255,255,255,.12);
-      padding-top:10px;
-    }
+    #gate .card h1{margin:0; font-size:16px; letter-spacing:.2px}
+    #gate .card p{margin:8px 0 0; color:rgba(255,246,230,.72); line-height:1.45; font-size:12px}
+    #gate .actions{margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center}
 
+    /* debug cam */
     #debugCam{
-      position:absolute; right:14px; bottom:14px;
-      width:min(340px, 48vw);
+      position:absolute; right:10px; bottom:10px;
+      width:min(280px, 46vw);
       aspect-ratio: 4 / 3;
-      border-radius:16px;
+      border-radius:14px;
       overflow:hidden;
-      border:1px solid rgba(255,213,122,.20);
+      border:1px solid rgba(255,213,122,.18);
       box-shadow: var(--shadow);
       background: rgba(0,0,0,.25);
       display:none;
@@ -143,6 +180,7 @@
     }
     #debugCam canvas{width:100%; height:100%; display:block;}
 
+    /* 错误弹层（保留） */
     #bootError{
       position:absolute; inset:0;
       display:none;
@@ -175,14 +213,16 @@
       word-break: break-word;
     }
 
+    /* 手机更紧凑 */
     @media (max-width: 520px){
-      #hud{left:10px; top:10px; width:calc(100vw - 20px)}
-      #debugCam{right:10px; bottom:10px}
-      .btn,label.file{padding:11px 12px}
+      #hud{left:8px; top:8px; width:calc(100vw - 16px); border-radius:14px}
+      #hudTitle{max-width: 44vw; font-size:12px}
+      #statusBadge{max-width: 44vw}
+      #debugCam{right:8px; bottom:8px}
+      .btn, label.file{padding:9px 10px}
     }
   </style>
 
-  <!-- ✅ 关键修复：importmap 把 "three" 映射到真实 URL，解决你看到的报错 -->
   <script type="importmap">
   {
     "imports": {
@@ -192,7 +232,6 @@
   }
   </script>
 
-  <!-- MediaPipe：用 unpkg（你也可以换回 jsdelivr） -->
   <script src="https://unpkg.com/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
@@ -203,40 +242,38 @@
     <canvas id="gl"></canvas>
     <div id="grain"></div>
 
-    <div id="hud">
-      <div class="title">
+    <!-- ✅ 更小的 HUD：默认折叠 -->
+    <div id="hud" class="hud-closed">
+      <div id="hudHeader">
         <span class="dot"></span>
-        <div>手势控制 3D 粒子 + 照片云圣诞树（本地8张）</div>
-        <div class="badge" id="statusBadge">STATE: CONE · GESTURE: — · CAM: OFF · PHOTOS: 0</div>
+        <div id="hudTitle">🎄 Hand Tree</div>
+        <div class="badge" id="statusBadge">STATE: CONE · G: — · CAM: OFF · P: 0</div>
+        <button class="btn tiny" id="hudToggle">展开</button>
       </div>
-      <div class="sub">
-        <b>握拳</b>→合拢成树 <b>五指张开</b>→散开漂浮 <b>捏合(抓)</b>→抓住照片放大 <b>手掌旋转/移动</b>→散开态旋转视角<br/>
-        也支持测试：<b>键盘 1</b>合拢 <b>2</b>散开 <b>Esc</b>退出放大，点击照片可放大
-      </div>
-      <div class="row">
-        <button class="btn" id="startBtn">🎥 启动摄像头 & 开始</button>
-        <label class="file" for="photosInput">🖼️ 上传照片（可选）
-          <input id="photosInput" type="file" accept="image/*" multiple />
-        </label>
-        <button class="btn secondary" id="toggleDebug">🧪 调试视图</button>
+
+      <div id="hudBody">
+        <div class="row">
+          <button class="btn" id="startBtn">开始</button>
+          <button class="btn secondary" id="watchBtn">仅观看</button>
+          <label class="file" for="photosInput">上传
+            <input id="photosInput" type="file" accept="image/*" multiple />
+          </label>
+          <button class="btn secondary" id="toggleDebug">调试</button>
+        </div>
+        <div id="hudHint">手势：握拳=合拢｜张开=散开｜捏合=放大</div>
       </div>
     </div>
 
     <div id="debugCam"><canvas id="debug2d"></canvas></div>
 
+    <!-- ✅ 更小的 Gate -->
     <div id="gate">
       <div class="card">
-        <h1>🎄 用手势“捏住”圣诞树</h1>
-        <p>
-          默认加载同目录 <b>pic1.jpg ~ pic8.jpg</b>（和 index.html 放一起）。<br/>
-          <b>手机使用：需要 HTTPS</b>（你 GitHub Pages 已经是 HTTPS ✅）。
-        </p>
+        <h1>🎄 手势圣诞树</h1>
+        <p>点“开始”启用手势；点“仅观看”直接看效果。</p>
         <div class="actions">
-          <button class="btn" id="gateStart">开始（授权摄像头）</button>
-          <button class="btn secondary" id="gateNoCam">仅观看（无手势）</button>
-        </div>
-        <div class="note">
-          手势：握拳=合拢；五指张开=散开；拇指+食指捏合=抓住照片放大；在散开态旋转/移动手掌可旋转视角。
+          <button class="btn" id="gateStart">开始</button>
+          <button class="btn secondary" id="gateNoCam">仅观看</button>
         </div>
       </div>
     </div>
@@ -255,23 +292,16 @@
     <video id="video" playsinline muted style="display:none"></video>
   </div>
 
-  <!-- ✅ 非 module 引导：就算 module 崩了也不会“点了没反应” -->
   <script>
-    function safeStart(withCamera){
-      if(window.__TREE_BOOT__ && typeof window.__TREE_BOOT__.start === "function"){
-        window.__TREE_BOOT__.start(withCamera);
-      }else{
-        const box = document.getElementById("bootError");
-        const msg = document.getElementById("bootErrorMsg");
-        const detail = document.getElementById("bootErrorDetail");
-        msg.textContent = "核心模块脚本未加载成功（通常是 Three.js/模块被拦或 importmap 不生效）。";
-        detail.textContent = "请用桌面 Chrome 打开 DevTools → Console 看具体报错。\n也可以尝试换网络，或把 three CDN 换成 jsdelivr。";
-        box.style.display = "flex";
-      }
-    }
-    document.getElementById("gateStart").addEventListener("click", ()=>safeStart(true));
-    document.getElementById("gateNoCam").addEventListener("click", ()=>safeStart(false));
-    document.getElementById("startBtn").addEventListener("click", ()=>safeStart(true));
+    // HUD 折叠/展开（纯 UI，不影响渲染）
+    const hud = document.getElementById("hud");
+    const hudToggle = document.getElementById("hudToggle");
+    let hudOpen = false;
+    hudToggle.addEventListener("click", ()=>{
+      hudOpen = !hudOpen;
+      hud.classList.toggle("hud-open", hudOpen);
+      hudToggle.textContent = hudOpen ? "收起" : "展开";
+    });
   </script>
 
   <script type="module">
@@ -281,17 +311,18 @@
     import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
     import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 
+    // ========= 下面基本保持你可用版本，只改 badge 显示更短 =========
     const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
     const damp = (a, b, lambda, dt) => THREE.MathUtils.damp(a, b, lambda, dt);
 
     const STATE = { CONE:"CONE", SCATTER:"SCATTER", PHOTO:"PHOTO" };
     let state = STATE.CONE;
     let selectedPhoto = null;
-    let camState = "OFF"; // OFF / REQ / ON / DENIED / ERR
+    let camState = "OFF"; // OFF/REQ/ON/DENIED/ERR
 
     const badge = document.getElementById("statusBadge");
     function setBadge(gestureLabel="—"){
-      badge.textContent = `STATE: ${state} · GESTURE: ${gestureLabel} · CAM: ${camState} · PHOTOS: ${photoPlanes.length}`;
+      badge.textContent = `S:${state} · G:${gestureLabel} · CAM:${camState} · P:${photoPlanes.length}`;
     }
 
     const bootError = document.getElementById("bootError");
@@ -367,7 +398,6 @@
         uniform float uVig;
         uniform float uGrain;
         varying vec2 vUv;
-
         float hash(vec2 p){
           p = fract(p*vec2(123.34, 345.45));
           p += dot(p, p+34.345);
@@ -651,42 +681,32 @@
     const photoRay = new THREE.Raycaster();
     const photoNDC = new THREE.Vector2();
 
-    // ✅ 你的本地 8 张图
     const DEFAULT_PHOTO_URLS = Array.from({length:8}, (_,i)=>`./pic${i+1}.jpg`);
 
     function makeProceduralPhoto(i){
       const c = document.createElement("canvas");
       c.width = 512; c.height = 640;
       const g = c.getContext("2d");
-
       const grad = g.createLinearGradient(0,0,512,640);
       grad.addColorStop(0, "#0b2a1d");
       grad.addColorStop(1, "#1f6b45");
       g.fillStyle = grad;
       g.fillRect(0,0,512,640);
-
       g.globalCompositeOperation = "screen";
-      for(let k=0;k<14;k++){
+      for(let k=0;k<12;k++){
         const x = Math.random()*512, y = Math.random()*640;
         const r = 40 + Math.random()*110;
         const a = 0.05 + Math.random()*0.10;
         g.fillStyle = `rgba(255,213,122,${a})`;
         g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill();
       }
-
       g.globalCompositeOperation = "source-over";
-      for(let k=0;k<150;k++){
+      for(let k=0;k<140;k++){
         const x = Math.random()*512, y = Math.random()*640;
         const s = Math.random()*2.2;
         g.fillStyle = `rgba(255,246,230,${0.15+Math.random()*0.35})`;
         g.beginPath(); g.arc(x,y,s,0,Math.PI*2); g.fill();
       }
-
-      g.fillStyle = "rgba(255,246,230,.88)";
-      g.font = "700 36px system-ui, -apple-system, Segoe UI, sans-serif";
-      g.fillText("Merry", 28, 64);
-      g.fillText("Christmas", 28, 108);
-
       const tex = new THREE.CanvasTexture(c);
       tex.colorSpace = THREE.SRGBColorSpace;
       return tex;
@@ -716,16 +736,7 @@
       const scatterP = randomInShell(2.7, 9.5);
       scatterP.y = THREE.MathUtils.clamp(scatterP.y, -1.2, 6.5);
 
-      const item = {
-        mesh: m,
-        p: coneP.clone(),
-        tp: coneP.clone(),
-        s: 1.0,
-        ts: 1.0,
-        coneP,
-        scatterP
-      };
-
+      const item = { mesh: m, p: coneP.clone(), tp: coneP.clone(), s:1, ts:1, coneP, scatterP };
       m.position.copy(item.p);
       m.lookAt(0, item.p.y, 0);
 
@@ -746,20 +757,16 @@
     }
 
     async function preloadDefaultPhotos(){
-      // 先占位（避免一开始空）
       const holders = [];
       for(let i=0;i<DEFAULT_PHOTO_URLS.length;i++){
         holders.push(addPhotoTexture(makeProceduralPhoto(i)));
       }
-      // 再替换为本地 jpg
       for(let i=0;i<DEFAULT_PHOTO_URLS.length;i++){
         try{
           const tex = await loadTextureFromUrl(DEFAULT_PHOTO_URLS[i]);
           holders[i].mesh.material.map = tex;
           holders[i].mesh.material.needsUpdate = true;
-        }catch(e){
-          // 保留占位
-        }
+        }catch{}
       }
     }
 
@@ -817,15 +824,9 @@
           it.tq.setFromEuler(pack.tmpE);
         }
       }
-
       for(const ph of photoPlanes){
-        if(state === STATE.CONE){
-          ph.tp.copy(ph.coneP);
-          ph.ts = 0.92;
-        }else{
-          ph.tp.copy(ph.scatterP);
-          ph.ts = 1.0;
-        }
+        ph.tp.copy(state === STATE.CONE ? ph.coneP : ph.scatterP);
+        ph.ts = (state === STATE.CONE) ? 0.92 : 1.0;
       }
     }
 
@@ -835,7 +836,6 @@
       orbit.phi   = damp(orbit.phi,   orbit.tPhi,   9, dt);
       orbit.r     = damp(orbit.r,     orbit.tR,     8, dt);
       orbit.phi = clamp(orbit.phi, 0.35, 1.45);
-
       const x = orbit.r * Math.cos(orbit.theta) * Math.sin(orbit.phi);
       const z = orbit.r * Math.sin(orbit.theta) * Math.sin(orbit.phi);
       const y = orbit.r * Math.cos(orbit.phi) + 0.8;
@@ -843,19 +843,19 @@
       camera.lookAt(0, 1.6, 0);
     }
 
-    const video = document.getElementById("video");
+    // debug
     const debugWrap = document.getElementById("debugCam");
     const debugCanvas = document.getElementById("debug2d");
     const dbg = debugCanvas.getContext("2d");
-
-    let mpCamera = null;
-    let mpHands = null;
-
     let debugOn = false;
     document.getElementById("toggleDebug").addEventListener("click", ()=>{
       debugOn = !debugOn;
       debugWrap.style.display = debugOn ? "block" : "none";
     });
+
+    const video = document.getElementById("video");
+    let mpCamera = null;
+    let mpHands = null;
 
     const hand = {
       present:false, handedness:"Right", lm:null,
@@ -865,7 +865,6 @@
       _lastPinch:false,
       _rollPrev:null
     };
-
     const lmGet = (i)=>hand.lm?.[i] || null;
     const dist2 = (a,b)=>Math.hypot(a.x-b.x, a.y-b.y);
     function fingerExtended(tip, pip){ return tip.y < pip.y - 0.02; }
@@ -954,7 +953,7 @@
       if(typeof Hands === "undefined" || typeof Camera === "undefined"){
         camState = "ERR";
         setBadge(hand?.gesture || "—");
-        showBootError("MediaPipe 未加载成功", "Hands/Camera 全局对象不存在。可能脚本被拦截。");
+        showBootError("MediaPipe 未加载成功", "Hands/Camera 全局对象不存在。");
         return;
       }
 
@@ -1003,8 +1002,6 @@
       if(e.key === "2") setState(STATE.SCATTER);
       if(e.key === "Escape") setState(STATE.SCATTER);
     });
-
-    const clock = new THREE.Clock();
 
     function updateInstanced(pack, dt){
       const m = pack.mesh;
@@ -1127,6 +1124,7 @@
       }
     }
 
+    const clock = new THREE.Clock();
     function tick(){
       const dt = Math.min(0.033, clock.getDelta());
       updateGestures(dt);
@@ -1146,6 +1144,11 @@
     }
 
     const gate = document.getElementById("gate");
+    const gateStart = document.getElementById("gateStart");
+    const gateNoCam = document.getElementById("gateNoCam");
+    const startBtn = document.getElementById("startBtn");
+    const watchBtn = document.getElementById("watchBtn");
+
     let started = false;
 
     async function start(withCamera=true){
@@ -1162,28 +1165,23 @@
 
         if(withCamera){
           if(!navigator.mediaDevices?.getUserMedia){
-            camState = "ERR";
-            setBadge(hand?.gesture || "—");
-            showBootError("当前浏览器不支持摄像头或需要 HTTPS", "navigator.mediaDevices.getUserMedia 不存在");
+            camState = "ERR"; setBadge(hand?.gesture || "—");
+            showBootError("不支持摄像头/需要 HTTPS", "navigator.mediaDevices.getUserMedia 不存在");
             return;
           }
 
-          camState = "REQ";
-          setBadge(hand?.gesture || "—");
-
+          camState = "REQ"; setBadge(hand?.gesture || "—");
           navigator.mediaDevices.getUserMedia({
             video: { facingMode: "user", width: {ideal: 640}, height: {ideal: 480} },
             audio: false
           }).then(async (stream)=>{
-            camState = "ON";
-            setBadge(hand?.gesture || "—");
+            camState = "ON"; setBadge(hand?.gesture || "—");
             video.srcObject = stream;
             await video.play();
             await initMediaPipe();
           }).catch((err)=>{
-            camState = "DENIED";
-            setBadge(hand?.gesture || "—");
-            showBootError("摄像头权限被拒绝/失败（仍可观看无手势）", String(err && (err.stack || err.message || err)));
+            camState = "DENIED"; setBadge(hand?.gesture || "—");
+            showBootError("摄像头被拒绝（仍可观看）", String(err && (err.stack || err.message || err)));
           });
         }else{
           camState = "OFF";
@@ -1194,8 +1192,10 @@
       }
     }
 
-    // 把 start 暴露给非 module 引导脚本
-    window.__TREE_BOOT__ = { start };
+    gateStart.addEventListener("click", ()=>start(true));
+    gateNoCam.addEventListener("click", ()=>start(false));
+    startBtn.addEventListener("click", ()=>start(true));
+    watchBtn.addEventListener("click", ()=>start(false));
 
     setBadge("—");
   </script>
