@@ -720,26 +720,35 @@
       const aspect = 4/5;
       const w = 1.25;
       const h = w / aspect;
-
+    
+      // ✅ 让照片更亮：emissiveMap + 更高 emissiveIntensity
       const geo = new THREE.PlaneGeometry(w, h);
       const mat = new THREE.MeshPhysicalMaterial({
         map: tex,
-        roughness: 0.35,
-        metalness: 0.02,
-        clearcoat: 0.85,
-        clearcoatRoughness: 0.18,
-        emissive: 0x0e0706,
-        emissiveIntensity: 0.12
+    
+        // 更“亮 + 干净”的表面
+        roughness: 0.22,
+        metalness: 0.0,
+        clearcoat: 0.75,
+        clearcoatRoughness: 0.10,
+    
+        // ✅ 关键：用图片本身作为自发光贴图
+        emissive: new THREE.Color(0xffffff),
+        emissiveMap: tex,
+        emissiveIntensity: 0.95
       });
-
+    
+      // ✅ 关键：避免整体 toneMapping 把照片压暗
+      mat.toneMapped = false;
+    
       const m = new THREE.Mesh(geo, mat);
       m.frustumCulled = false;
-
+    
       const idx = photoPlanes.length;
       const coneP = conePose(idx, 28, 0.45);
       const scatterP = randomInShell(2.7, 9.5);
       scatterP.y = THREE.MathUtils.clamp(scatterP.y, -1.2, 6.5);
-
+    
       const item = {
         mesh: m,
         p: coneP.clone(),
@@ -749,15 +758,16 @@
         coneP,
         scatterP
       };
-
+    
       m.position.copy(item.p);
       m.lookAt(0, item.p.y, 0);
-
+    
       photoPlanes.push(item);
       photoGroup.add(m);
       setBadge(hand?.gesture || "—");
       return item;
     }
+
 
     async function loadTextureFromUrl(url){
       return await new Promise((resolve, reject)=>{
