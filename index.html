@@ -147,10 +147,10 @@
     }
   </style>
 
-  <!-- MediaPipe -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+  <!-- MediaPipe (换成 unpkg，避免 jsdelivr 不通导致整页无响应) -->
+  <script src="https://unpkg.com/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 </head>
 
 <body>
@@ -200,11 +200,12 @@
   </div>
 
   <script type="module">
-    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.module.js";
-    import { EffectComposer } from "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/postprocessing/EffectComposer.js";
-    import { RenderPass } from "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/postprocessing/RenderPass.js";
-    import { UnrealBloomPass } from "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/postprocessing/UnrealBloomPass.js";
-    import { ShaderPass } from "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/postprocessing/ShaderPass.js";
+    // THREE.js（换成 unpkg）
+    import * as THREE from "https://unpkg.com/three@0.182.0/build/three.module.js";
+    import { EffectComposer } from "https://unpkg.com/three@0.182.0/examples/jsm/postprocessing/EffectComposer.js";
+    import { RenderPass } from "https://unpkg.com/three@0.182.0/examples/jsm/postprocessing/RenderPass.js";
+    import { UnrealBloomPass } from "https://unpkg.com/three@0.182.0/examples/jsm/postprocessing/UnrealBloomPass.js";
+    import { ShaderPass } from "https://unpkg.com/three@0.182.0/examples/jsm/postprocessing/ShaderPass.js";
 
     const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
     const damp = (a, b, lambda, dt) => THREE.MathUtils.damp(a, b, lambda, dt);
@@ -213,7 +214,6 @@
     const STATE = { CONE:"CONE", SCATTER:"SCATTER", PHOTO:"PHOTO" };
     let state = STATE.CONE;
     let selectedPhoto = null;
-
     let camState = "OFF"; // OFF / REQ / ON / DENIED / ERR
 
     const badge = document.getElementById("statusBadge");
@@ -227,8 +227,6 @@
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.setSize(innerWidth, innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-    // 亮度调低（更清楚）
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.78;
 
@@ -238,7 +236,6 @@
     const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 120);
     camera.position.set(0, 3.8, 14);
 
-    // lights（整体柔和一点）
     const key = new THREE.DirectionalLight(0xfff0d5, 0.90);
     key.position.set(6, 10, 6);
     scene.add(key);
@@ -255,23 +252,19 @@
     redGlow.position.set(-4, 2.5, 2);
     scene.add(redGlow);
 
-    // background sphere
     const bg = new THREE.Mesh(
       new THREE.SphereGeometry(60, 48, 32),
       new THREE.MeshBasicMaterial({ color: 0x0b2a1d, side: THREE.BackSide, transparent:true, opacity: 0.95 })
     );
     scene.add(bg);
 
-    // postprocessing
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-
-    // Bloom 调低（看清结构）
     const bloom = new UnrealBloomPass(
       new THREE.Vector2(innerWidth, innerHeight),
-      0.55,   // strength
-      0.55,   // radius
-      0.28    // threshold（提高阈值，减少泛白）
+      0.55,
+      0.55,
+      0.28
     );
     composer.addPass(bloom);
 
@@ -300,14 +293,11 @@
         }
         void main(){
           vec4 col = texture2D(tDiffuse, vUv);
-
           vec2 d = vUv - 0.5;
           float vig = smoothstep(0.85, 0.15, dot(d,d) * 1.75);
           col.rgb *= mix(1.0 - uVig, 1.0, vig);
-
           float n = hash(vUv * vec2(1920.0,1080.0) + uTime);
           col.rgb += (n - 0.5) * uGrain;
-
           gl_FragColor = col;
         }
       `
@@ -315,7 +305,6 @@
     const vignettePass = new ShaderPass(VignetteGrainShader);
     composer.addPass(vignettePass);
 
-    // ground
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(9.5, 64),
       new THREE.MeshStandardMaterial({
@@ -358,7 +347,6 @@
       );
     }
 
-    // candy stripe texture
     function makeStripeTexture(){
       const c = document.createElement("canvas");
       c.width = 128; c.height = 32;
@@ -380,7 +368,6 @@
     }
     const stripeTex = makeStripeTexture();
 
-    // materials
     const goldMat = new THREE.MeshPhysicalMaterial({
       color: 0xc7a54f,
       metalness: 0.95,
@@ -484,7 +471,6 @@
       spin: 1.2
     });
 
-    // topper star
     function makeStar(){
       const starShape = new THREE.Shape();
       const spikes = 5, outer = 0.62, inner = 0.28;
@@ -513,7 +499,7 @@
     const star = makeStar();
     ROOT.add(star);
 
-    // ---------- sparkle particles ----------
+    // sparkle particles
     const particleCount = 2300;
     const pGeo = new THREE.BufferGeometry();
     const pPos = new Float32Array(particleCount*3);
@@ -541,19 +527,15 @@
         void main(){
           vSeed = aSeed;
           vec3 pos = position;
-
           float t = uTime*0.85 + aSeed*12.0;
           float wob = 0.02 + 0.05 * aSeed;
           pos.x += sin(t*1.7) * wob;
           pos.z += cos(t*1.5) * wob;
           pos.y += sin(t*1.1) * wob * 0.6;
-
           vec4 mv = modelViewMatrix * vec4(pos, 1.0);
           gl_Position = projectionMatrix * mv;
-
           float tw = 0.45 + 0.55 * sin(t*2.2);
           vTw = tw;
-
           float size = mix(1.5, 7.5, tw);
           size *= (300.0 / -mv.z);
           gl_PointSize = clamp(size, 1.0, 34.0);
@@ -566,17 +548,13 @@
         void main(){
           vec2 uv = gl_PointCoord - 0.5;
           float d = length(uv);
-
           float core = smoothstep(0.26, 0.0, d);
           float halo = smoothstep(0.50, 0.20, d) * 0.35;
-
           vec3 gold = vec3(1.00, 0.84, 0.48);
           vec3 red  = vec3(0.96, 0.16, 0.26);
           vec3 grn  = vec3(0.18, 0.78, 0.44);
-
           float sel = fract(vSeed*7.13);
           vec3 c = (sel < 0.55) ? gold : ((sel < 0.78) ? red : grn);
-
           float a = (core + halo) * (0.32 + 0.50*vTw);
           gl_FragColor = vec4(c * a, a);
         }
@@ -585,7 +563,7 @@
     const sparkle = new THREE.Points(pGeo, pMat);
     ROOT.add(sparkle);
 
-    // ---------- photos cloud ----------
+    // photos cloud
     const photoGroup = new THREE.Group();
     ROOT.add(photoGroup);
 
@@ -593,7 +571,6 @@
     const photoRay = new THREE.Raycaster();
     const photoNDC = new THREE.Vector2();
 
-    // 生成“占位伪照片”
     function makeProceduralPhoto(i){
       const c = document.createElement("canvas");
       c.width = 512; c.height = 640;
@@ -632,9 +609,8 @@
       return tex;
     }
 
-    // ✅ 修正版：根据当前 state 放到 CONE 或 SCATTER，并返回 item
     function addPhotoTexture(tex){
-      const aspect = 4/5;     // plane w:h
+      const aspect = 4/5;
       const w = 1.25;
       const h = w / aspect;
 
@@ -686,7 +662,6 @@
     async function loadTextureFromUrl(url){
       return await new Promise((resolve, reject)=>{
         const loader = new THREE.TextureLoader();
-        // 同域图片也没问题；跨域时需要图片服务器允许 CORS
         loader.setCrossOrigin("anonymous");
         loader.load(url, (t)=>{
           t.colorSpace = THREE.SRGBColorSpace;
@@ -695,19 +670,12 @@
       });
     }
 
-    // ✅ 只从同目录加载 pic1.jpg ~ pic8.jpg
-    // 你的 repo 根目录（和 index.html 同目录）放：
-    // pic1.jpg pic2.jpg ... pic8.jpg
+    // 只从同目录加载 pic1.jpg ~ pic8.jpg
     function preloadLocalPhotos8(){
-      // 先加 8 张占位，立刻可见
       const holders = [];
       for(let i=1;i<=8;i++){
-        const placeholder = makeProceduralPhoto(i);
-        const item = addPhotoTexture(placeholder);
-        holders.push(item);
+        holders.push(addPhotoTexture(makeProceduralPhoto(i)));
       }
-
-      // 异步替换为真实 jpg，不阻塞渲染/不影响权限弹窗
       for(let i=1;i<=8;i++){
         const url = `./pic${i}.jpg`;
         loadTextureFromUrl(url).then((realTex)=>{
@@ -720,7 +688,6 @@
       }
     }
 
-    // 上传照片（可选）
     const photosInput = document.getElementById("photosInput");
     photosInput.addEventListener("change", async (e)=>{
       const files = [...(e.target.files||[])].slice(0, 30);
@@ -736,7 +703,6 @@
       retargetAll();
     });
 
-    // ---------- layout ----------
     function resize(){
       const w = innerWidth, h = innerHeight;
       renderer.setSize(w,h);
@@ -747,7 +713,6 @@
     }
     addEventListener("resize", resize);
 
-    // ---------- retarget ----------
     function setState(next, opts={}){
       state = next;
       if(state !== STATE.PHOTO) selectedPhoto = null;
@@ -777,7 +742,6 @@
           it.tq.setFromEuler(pack.tmpE);
         }
       }
-
       for(const ph of photoPlanes){
         if(state === STATE.CONE){
           ph.tp.copy(ph.coneP);
@@ -789,7 +753,6 @@
       }
     }
 
-    // ---------- camera orbit ----------
     const orbit = { theta: 0, phi: 1.12, r: 14, tTheta: 0, tPhi: 1.12, tR: 14 };
     function updateCamera(dt){
       orbit.theta = damp(orbit.theta, orbit.tTheta, 9, dt);
@@ -804,7 +767,7 @@
       camera.lookAt(0, 1.6, 0);
     }
 
-    // ---------- mediapipe hands ----------
+    // ---- MediaPipe hands ----
     const video = document.getElementById("video");
     const debugWrap = document.getElementById("debugCam");
     const debugCanvas = document.getElementById("debug2d");
@@ -913,8 +876,16 @@
     }
 
     async function initMediaPipe(){
+      if(typeof Hands === "undefined" || typeof Camera === "undefined"){
+        camState = "ERR";
+        setBadge(hand?.gesture || "—");
+        alert("MediaPipe 未加载成功（可能网络拦截了外部脚本）。请换网络/换浏览器后重试。");
+        return;
+      }
+
       mpHands = new Hands({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`
+        // locateFile 也要换成 unpkg，否则会去旧 CDN 拉 wasm
+        locateFile: (file) => `https://unpkg.com/@mediapipe/hands@0.4.1675469240/${file}`
       });
       mpHands.setOptions({
         maxNumHands: 1,
@@ -932,7 +903,7 @@
       mpCamera.start();
     }
 
-    // ---------- pinch pick photo ----------
+    // pinch pick photo
     function raycastPhotoFromHand(){
       const tip = lmGet(8);
       if(!tip) return null;
@@ -960,7 +931,7 @@
       if(e.key === "Escape") setState(STATE.SCATTER);
     });
 
-    // ---------- animation ----------
+    // animation
     const clock = new THREE.Clock();
 
     function updateInstanced(pack, dt){
@@ -1125,7 +1096,7 @@
       requestAnimationFrame(tick);
     }
 
-    // ---------- start / gate ----------
+    // start / gate
     const gate = document.getElementById("gate");
     const gateStart = document.getElementById("gateStart");
     const gateNoCam = document.getElementById("gateNoCam");
@@ -1135,22 +1106,18 @@
       if(started) return;
       started = true;
 
-      if(!window.isSecureContext){
-        alert("当前不是安全上下文（需要 HTTPS 或 localhost），手机浏览器将无法请求摄像头权限。");
-      }
-
       gate.style.display = "none";
 
-      // ✅ 立刻开始渲染，避免“卡住黑屏”
+      // 先渲染，避免“点了没反应”
       retargetAll();
       resize();
       tick();
 
-      // ✅ 立刻加载同目录 pic1.jpg ~ pic8.jpg（异步替换，不阻塞）
+      // 异步加载本地 8 张照片（不阻塞权限弹窗）
       preloadLocalPhotos8();
       retargetAll();
 
-      // ✅ 权限请求必须紧跟用户点击触发：不要在前面 await 任何东西
+      // 立刻请求相机权限（不要 await 前置耗时）
       if(withCamera){
         if(!navigator.mediaDevices?.getUserMedia){
           camState = "ERR";
@@ -1183,8 +1150,7 @@
           console.warn("Camera permission failed:", err);
           camState = "DENIED";
           setBadge(hand?.gesture || "—");
-          // 仍可观看（无手势）
-          alert("摄像头权限被拒绝/失败：你仍可观看圣诞树，但无法使用手势。请在浏览器/系统设置中允许相机权限后重试。");
+          alert("摄像头权限被拒绝/失败：你仍可观看圣诞树，但无法使用手势。请在系统/浏览器设置中允许相机权限后重试。");
         });
       }else{
         camState = "OFF";
