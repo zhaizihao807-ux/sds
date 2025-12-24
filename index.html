@@ -671,7 +671,7 @@
     }
 
     // ✅ 照片亮度：保持亮，但“放大时不额外增亮”
-    const PHOTO_EMISSIVE = 1.85;
+    const PHOTO_EMISSIVE = 0.75;
 
     function addPhotoTexture(tex){
       const aspect = 4/5;
@@ -689,7 +689,7 @@
         emissiveMap: tex,
         emissiveIntensity: PHOTO_EMISSIVE
       });
-      mat.toneMapped = false;
+      mat.toneMapped = true;
 
       const m = new THREE.Mesh(geo, mat);
       m.frustumCulled = false;
@@ -1170,6 +1170,13 @@
       updateStar(dt);
       updateSparkle();
 
+      // ✅ 放大照片时降低 bloom，避免过曝泛白
+      const targetBloom = (state === STATE.PHOTO) ? 0.22 : 0.55;
+      const targetThres = (state === STATE.PHOTO) ? 0.55 : 0.28;
+      bloom.strength  = damp(bloom.strength,  targetBloom, 4.0, dt);
+      bloom.threshold = damp(bloom.threshold, targetThres, 4.0, dt);
+
+      
       composer.render();
       requestAnimationFrame(tick);
     }
