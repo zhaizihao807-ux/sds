@@ -283,15 +283,15 @@
     let camState = "OFF";
     let started = false;
 
-    // ✅ 仅观看自动巡游
+    // 仅观看自动巡游
     let watchTour = false;
     let tourPhase = "PHOTO"; // PHOTO / GAP
     let tourIndex = 0;
     let tourTimer = 0;
 
-    const TOUR_PHOTO_SECONDS = 2.6; // 每张图放大停留时间
-    const TOUR_GAP_SECONDS   = 0.45; // 图与图之间散开过渡时间
-    const TOUR_ROT_SPEED     = 0.18; // 自动旋转速度（越大越快）
+    const TOUR_PHOTO_SECONDS = 2.6;
+    const TOUR_GAP_SECONDS   = 0.45;
+    const TOUR_ROT_SPEED     = 0.18;
 
     const hud = document.getElementById("hud");
     const badgeEl = document.getElementById("badge");
@@ -317,7 +317,7 @@
       hud.classList.contains("hidden") ? showHud() : hideHud();
     });
 
-    // ---------- renderer / scene ----------
+    // renderer / scene
     const canvas = document.getElementById("gl");
     const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -634,8 +634,9 @@
     const photoRay = new THREE.Raycaster();
     const photoNDC = new THREE.Vector2();
 
+    // ✅ pic1.jpg ~ pic20.jpg（同目录）
     const BASE = new URL(".", location.href);
-    const DEFAULT_PHOTO_URLS = Array.from({length:8}, (_,i)=>new URL(`pic${i+1}.jpg`, BASE).toString());
+    const DEFAULT_PHOTO_URLS = Array.from({length:20}, (_,i)=>new URL(`pic${i+1}.jpg`, BASE).toString());
 
     function makeProceduralPhoto(i){
       const c = document.createElement("canvas");
@@ -670,7 +671,7 @@
       return tex;
     }
 
-    // ✅ 照片亮度：保持亮，但“放大时不额外增亮”
+    // ✅ 降低过曝风险：自发光强度更克制
     const PHOTO_EMISSIVE = 0.75;
 
     function addPhotoTexture(tex){
@@ -689,7 +690,7 @@
         emissiveMap: tex,
         emissiveIntensity: PHOTO_EMISSIVE
       });
-      mat.toneMapped = true;
+      // ✅ 不要 mat.toneMapped=false（默认 true），让 ACES 压住高光
 
       const m = new THREE.Mesh(geo, mat);
       m.frustumCulled = false;
@@ -850,8 +851,8 @@
     const dist2 = (a,b)=>Math.hypot(a.x-b.x, a.y-b.y);
     function fingerExtended(tip, pip){ return tip.y < pip.y - 0.02; }
 
-    // ✅ 更容易捏合
-    const PINCH_T = 0.4;
+    // 更容易捏合
+    const PINCH_T = 0.56;
 
     function detectGesture(){
       const lm = hand.lm;
@@ -886,7 +887,6 @@
       hand.pinchUp = (hand._lastPinch && !pinch);
       hand._lastPinch = pinch;
 
-      // PINCH 优先级最高
       if(pinch) return "PINCH";
       if(allOpen) return "PALM";
       if(allClosed) return "FIST";
@@ -1027,7 +1027,6 @@
       m.instanceMatrix.needsUpdate = true;
     }
 
-    // ✅ 放大时不额外增亮：emissiveIntensity 始终保持 PHOTO_EMISSIVE
     function facePhotos(dt){
       for(const ph of photoPlanes){
         if(state === STATE.CONE){
@@ -1061,7 +1060,7 @@
           ph.mesh.lookAt(camera.position);
         }
 
-        // 恒定亮度
+        // 恒定亮度（放大不额外加亮）
         const mat = ph.mesh.material;
         if(mat) mat.emissiveIntensity = PHOTO_EMISSIVE;
       }
@@ -1121,14 +1120,11 @@
       }
     }
 
-    // ✅ 仅观看自动巡游逻辑：旋转视角 + 轮流放大每张照片
     function updateWatchTour(dt){
       if(!watchTour) return;
       if(photoPlanes.length === 0) return;
 
-      // 自动旋转视角
       orbit.tTheta += dt * TOUR_ROT_SPEED;
-
       tourTimer += dt;
 
       if(tourPhase === "PHOTO"){
@@ -1141,7 +1137,7 @@
           tourTimer = 0;
           setState(STATE.SCATTER);
         }
-      }else{ // GAP
+      }else{
         if(tourTimer >= TOUR_GAP_SECONDS){
           tourPhase = "PHOTO";
           tourTimer = 0;
@@ -1154,7 +1150,6 @@
     function tick(){
       const dt = Math.min(0.033, clock.getDelta());
 
-      // 有摄像头才用手势更新；仅观看则走巡游
       if(camState === "ON") updateGestures(dt);
       else setBadge("—");
 
@@ -1171,12 +1166,11 @@
       updateSparkle();
 
       // ✅ 放大照片时降低 bloom，避免过曝泛白
-      const targetBloom = (state === STATE.PHOTO) ? 0.22 : 0.55;
-      const targetThres = (state === STATE.PHOTO) ? 0.55 : 0.28;
+      const targetBloom  = (state === STATE.PHOTO) ? 0.22 : 0.55;
+      const targetThres  = (state === STATE.PHOTO) ? 0.55 : 0.28;
       bloom.strength  = damp(bloom.strength,  targetBloom, 4.0, dt);
       bloom.threshold = damp(bloom.threshold, targetThres, 4.0, dt);
 
-      
       composer.render();
       requestAnimationFrame(tick);
     }
@@ -1196,7 +1190,6 @@
         await ensureStarted();
         hideHud();
 
-        // 重置巡游状态
         watchTour = !withCamera;
         tourPhase = "PHOTO";
         tourIndex = 0;
@@ -1227,7 +1220,6 @@
         }else{
           camState = "OFF";
           setBadge("—");
-          // 让它先散开，再开始巡游
           setState(STATE.SCATTER);
         }
       }catch(e){
