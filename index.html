@@ -162,7 +162,7 @@
       <div class="title">
         <span class="dot"></span>
         <div>手势控制 3D 粒子 + 照片云圣诞树</div>
-        <div class="badge" id="statusBadge">STATE: CONE · GESTURE: — · PHOTOS: 0</div>
+        <div class="badge" id="statusBadge">STATE: CONE · GESTURE: — · CAM: OFF · PHOTOS: 0</div>
       </div>
       <div class="sub">
         <b>握拳</b>→合拢成树 <b>五指张开</b>→散开漂浮 <b>捏合(抓)</b>→抓住照片放大 <b>手掌旋转/移动</b>→散开态旋转视角<br/>
@@ -183,7 +183,7 @@
       <div class="card">
         <h1>🎄 用手势“捏住”圣诞树</h1>
         <p>
-          这个版本内置了默认照片（不上传也能看到照片云），并调低了“金/亮”，让细节更清楚。<br/>
+          这个版本会从同目录加载 <b>pic1.jpg ~ pic8.jpg</b>（和 index.html 放一起）。<br/>
           <b>手机使用：需要 HTTPS</b>（否则摄像头手势会被浏览器禁用）。
         </p>
         <div class="actions">
@@ -214,9 +214,11 @@
     let state = STATE.CONE;
     let selectedPhoto = null;
 
+    let camState = "OFF"; // OFF / REQ / ON / DENIED / ERR
+
     const badge = document.getElementById("statusBadge");
     function setBadge(gestureLabel="—"){
-      badge.textContent = `STATE: ${state} · GESTURE: ${gestureLabel} · PHOTOS: ${photoPlanes.length}`;
+      badge.textContent = `STATE: ${state} · GESTURE: ${gestureLabel} · CAM: ${camState} · PHOTOS: ${photoPlanes.length}`;
     }
 
     // ---------- renderer / scene ----------
@@ -378,7 +380,7 @@
     }
     const stripeTex = makeStripeTexture();
 
-    // materials（更“哑光绿 + 金属金 + 红”，减少泛白）
+    // materials
     const goldMat = new THREE.MeshPhysicalMaterial({
       color: 0xc7a54f,
       metalness: 0.95,
@@ -442,7 +444,6 @@
       return { mesh, items, tmpM: new THREE.Matrix4(), tmpV: new THREE.Vector3(), tmpE: new THREE.Euler() };
     }
 
-    // 多色球：金 + 红（避免“一片金”）
     const ornamentsGold = buildInstanced({
       count: 220,
       geometry: new THREE.SphereGeometry(0.35, 16, 12),
@@ -483,7 +484,7 @@
       spin: 1.2
     });
 
-    // topper star（稍收敛）
+    // topper star
     function makeStar(){
       const starShape = new THREE.Shape();
       const spikes = 5, outer = 0.62, inner = 0.28;
@@ -512,7 +513,7 @@
     const star = makeStar();
     ROOT.add(star);
 
-    // ---------- sparkle particles（降低发光） ----------
+    // ---------- sparkle particles ----------
     const particleCount = 2300;
     const pGeo = new THREE.BufferGeometry();
     const pPos = new Float32Array(particleCount*3);
@@ -592,31 +593,18 @@
     const photoRay = new THREE.Raycaster();
     const photoNDC = new THREE.Vector2();
 
-    // 1) 默认照片：无需上传即可看
-    // 你可以把这些 URL 换成你自己的图片链接
-    const DEFAULT_PHOTO_URLS = [
-      // Unsplash 示例（HTTPS + 支持跨域，尽量小）
-      "https://images.unsplash.com/photo-1543589077-47d81606c1bf?auto=format&fit=crop&w=768&q=70",
-      "https://images.unsplash.com/photo-1512389142860-9c449e58a543?auto=format&fit=crop&w=768&q=70",
-      "https://images.unsplash.com/photo-1545622783-b3e021430fee?auto=format&fit=crop&w=768&q=70",
-      "https://images.unsplash.com/photo-1544198365-2f37f1d23f69?auto=format&fit=crop&w=768&q=70",
-      "https://images.unsplash.com/photo-1544185310-0b3cf501672b?auto=format&fit=crop&w=768&q=70",
-      "https://images.unsplash.com/photo-1544746428-1b4cfd87ccf9?auto=format&fit=crop&w=768&q=70"
-    ];
-
+    // 生成“占位伪照片”
     function makeProceduralPhoto(i){
       const c = document.createElement("canvas");
       c.width = 512; c.height = 640;
       const g = c.getContext("2d");
 
-      // "photo-like" soft gradient
       const grad = g.createLinearGradient(0,0,512,640);
       grad.addColorStop(0, "#0b2a1d");
       grad.addColorStop(1, "#1f6b45");
       g.fillStyle = grad;
       g.fillRect(0,0,512,640);
 
-      // warm bokeh
       g.globalCompositeOperation = "screen";
       for(let k=0;k<14;k++){
         const x = Math.random()*512, y = Math.random()*640;
@@ -626,7 +614,6 @@
         g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill();
       }
 
-      // snow
       g.globalCompositeOperation = "source-over";
       for(let k=0;k<150;k++){
         const x = Math.random()*512, y = Math.random()*640;
@@ -635,7 +622,6 @@
         g.beginPath(); g.arc(x,y,s,0,Math.PI*2); g.fill();
       }
 
-      // title
       g.fillStyle = "rgba(255,246,230,.88)";
       g.font = "700 36px system-ui, -apple-system, Segoe UI, sans-serif";
       g.fillText("Merry", 28, 64);
@@ -646,6 +632,7 @@
       return tex;
     }
 
+    // ✅ 修正版：根据当前 state 放到 CONE 或 SCATTER，并返回 item
     function addPhotoTexture(tex){
       const aspect = 4/5;     // plane w:h
       const w = 1.25;
@@ -670,27 +657,36 @@
       const scatterP = randomInShell(2.7, 9.5);
       scatterP.y = THREE.MathUtils.clamp(scatterP.y, -1.2, 6.5);
 
+      const startP = (state === STATE.CONE) ? coneP : scatterP;
+      const startS = (state === STATE.CONE) ? 0.92 : 1.0;
+
       const item = {
         mesh: m,
-        p: coneP.clone(),
-        tp: coneP.clone(),
-        s: 1.0,
-        ts: 1.0,
+        p: startP.clone(),
+        tp: startP.clone(),
+        s: startS,
+        ts: startS,
         coneP,
         scatterP
       };
 
       m.position.copy(item.p);
-      m.lookAt(0, item.p.y, 0);
+      if(state === STATE.CONE){
+        m.lookAt(0, item.p.y, 0);
+      }else{
+        m.lookAt(camera.position);
+      }
 
       photoPlanes.push(item);
       photoGroup.add(m);
       setBadge(hand?.gesture || "—");
+      return item;
     }
 
     async function loadTextureFromUrl(url){
       return await new Promise((resolve, reject)=>{
         const loader = new THREE.TextureLoader();
+        // 同域图片也没问题；跨域时需要图片服务器允许 CORS
         loader.setCrossOrigin("anonymous");
         loader.load(url, (t)=>{
           t.colorSpace = THREE.SRGBColorSpace;
@@ -699,22 +695,32 @@
       });
     }
 
-    async function preloadDefaultPhotos(){
-      // 先给几个“占位伪照片”，保证马上就能看到
-      for(let i=0;i<6;i++) addPhotoTexture(makeProceduralPhoto(i));
+    // ✅ 只从同目录加载 pic1.jpg ~ pic8.jpg
+    // 你的 repo 根目录（和 index.html 同目录）放：
+    // pic1.jpg pic2.jpg ... pic8.jpg
+    function preloadLocalPhotos8(){
+      // 先加 8 张占位，立刻可见
+      const holders = [];
+      for(let i=1;i<=8;i++){
+        const placeholder = makeProceduralPhoto(i);
+        const item = addPhotoTexture(placeholder);
+        holders.push(item);
+      }
 
-      // 再异步尝试用真实默认照片替换（成功则继续加）
-      for(let i=0;i<DEFAULT_PHOTO_URLS.length;i++){
-        try{
-          const tex = await loadTextureFromUrl(DEFAULT_PHOTO_URLS[i]);
-          addPhotoTexture(tex);
-        }catch(e){
-          // 忽略失败（网络不通/跨域等）
-        }
+      // 异步替换为真实 jpg，不阻塞渲染/不影响权限弹窗
+      for(let i=1;i<=8;i++){
+        const url = `./pic${i}.jpg`;
+        loadTextureFromUrl(url).then((realTex)=>{
+          const item = holders[i-1];
+          item.mesh.material.map = realTex;
+          item.mesh.material.needsUpdate = true;
+        }).catch((err)=>{
+          console.warn(`Failed to load ${url}:`, err);
+        });
       }
     }
 
-    // 上传照片（仍保留，可选）
+    // 上传照片（可选）
     const photosInput = document.getElementById("photosInput");
     photosInput.addEventListener("change", async (e)=>{
       const files = [...(e.target.files||[])].slice(0, 30);
@@ -727,6 +733,7 @@
         }catch{}
       }
       photosInput.value = "";
+      retargetAll();
     });
 
     // ---------- layout ----------
@@ -917,7 +924,6 @@
       });
       mpHands.onResults(onResults);
 
-      // 手机上更稳：ideal 640x480 + user camera
       mpCamera = new Camera(video, {
         onFrame: async () => { await mpHands.send({ image: video }); },
         width: 640,
@@ -1090,6 +1096,7 @@
       }
     }
 
+    let started = false;
     function tick(){
       const dt = Math.min(0.033, clock.getDelta());
 
@@ -1111,7 +1118,6 @@
       updateStar(dt);
       updateSparkle(dt);
 
-      // Bloom 动态（但整体比原来更克制）
       const targetBloom = (state === STATE.PHOTO) ? 0.78 : (state === STATE.SCATTER ? 0.62 : 0.52);
       bloom.strength = damp(bloom.strength, targetBloom, 2.5, dt);
 
@@ -1125,29 +1131,65 @@
     const gateNoCam = document.getElementById("gateNoCam");
     const startBtn = document.getElementById("startBtn");
 
-    async function start(withCamera=true){
-      gate.style.display = "none";
+    function start(withCamera=true){
+      if(started) return;
+      started = true;
 
-      // 先加载默认照片（不上传也能看到）
-      await preloadDefaultPhotos();
-      retargetAll();
-
-      if(withCamera){
-        try{
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user", width: {ideal: 640}, height: {ideal: 480} },
-            audio: false
-          });
-          video.srcObject = stream;
-          await video.play();
-          await initMediaPipe();
-        }catch(err){
-          console.warn("Camera permission failed:", err);
-        }
+      if(!window.isSecureContext){
+        alert("当前不是安全上下文（需要 HTTPS 或 localhost），手机浏览器将无法请求摄像头权限。");
       }
 
+      gate.style.display = "none";
+
+      // ✅ 立刻开始渲染，避免“卡住黑屏”
+      retargetAll();
       resize();
       tick();
+
+      // ✅ 立刻加载同目录 pic1.jpg ~ pic8.jpg（异步替换，不阻塞）
+      preloadLocalPhotos8();
+      retargetAll();
+
+      // ✅ 权限请求必须紧跟用户点击触发：不要在前面 await 任何东西
+      if(withCamera){
+        if(!navigator.mediaDevices?.getUserMedia){
+          camState = "ERR";
+          setBadge(hand?.gesture || "—");
+          alert("当前浏览器不支持摄像头，或需要 HTTPS 才能访问摄像头。");
+          return;
+        }
+
+        camState = "REQ";
+        setBadge(hand?.gesture || "—");
+
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: {ideal: 640}, height: {ideal: 480} },
+          audio: false
+        }).then(async (stream)=>{
+          camState = "ON";
+          setBadge(hand?.gesture || "—");
+
+          video.srcObject = stream;
+          video.playsInline = true;
+          video.muted = true;
+
+          try{
+            await video.play();
+            await initMediaPipe();
+          }catch(e){
+            console.warn("video.play/initMediaPipe failed:", e);
+          }
+        }).catch((err)=>{
+          console.warn("Camera permission failed:", err);
+          camState = "DENIED";
+          setBadge(hand?.gesture || "—");
+          // 仍可观看（无手势）
+          alert("摄像头权限被拒绝/失败：你仍可观看圣诞树，但无法使用手势。请在浏览器/系统设置中允许相机权限后重试。");
+        });
+      }else{
+        camState = "OFF";
+        setBadge(hand?.gesture || "—");
+      }
     }
 
     gateStart.addEventListener("click", ()=>start(true));
