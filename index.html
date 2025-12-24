@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b2a1d" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Hand-Controlled Christmas Tree — Compact UI</title>
+  <title>Hand-Controlled Christmas Tree — Auto Hide UI</title>
 
   <style>
     :root{
@@ -14,13 +14,10 @@
       --bg1:#0b2a1d;
       --gold:#c7a54f;
       --gold2:#ffd57a;
-      --red:#c0162b;
-      --green:#1f6b45;
       --ui:rgba(8,18,14,.55);
       --ui2:rgba(10,26,19,.72);
       --line:rgba(255,213,122,.20);
       --text:rgba(255,246,230,.92);
-      --muted:rgba(255,246,230,.70);
       --shadow: 0 18px 60px rgba(0,0,0,.55);
     }
     *{box-sizing:border-box}
@@ -40,18 +37,24 @@
       mix-blend-mode:overlay; opacity:.18;
     }
 
-    /* ======= Compact HUD ======= */
+    /* ===== HUD (可折叠/可隐藏) ===== */
     #hud{
       position:absolute;
-      left:10px; top:10px;
-      width:min(420px, calc(100vw - 20px));
+      left:8px; top:8px;
+      width:min(420px, calc(100vw - 16px));
       border:1px solid var(--line);
-      border-radius:16px;
+      border-radius:14px;
       background:linear-gradient(180deg, var(--ui2), var(--ui));
       box-shadow: var(--shadow);
       backdrop-filter: blur(10px);
       z-index:10;
       overflow:hidden;
+      transition: opacity .18s ease, transform .18s ease;
+    }
+    #hud.hud-hidden{
+      opacity:0;
+      transform: translateY(-6px);
+      pointer-events:none;
     }
     #hudHeader{
       display:flex;
@@ -68,12 +71,12 @@
     #hudTitle{
       font-weight:780;
       letter-spacing:.2px;
-      font-size:13px;
+      font-size:12px;
       line-height:1.2;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      max-width: 48vw;
+      max-width: 42vw;
     }
     #statusBadge{
       margin-left:auto;
@@ -84,15 +87,14 @@
       background:rgba(0,0,0,.20);
       color:rgba(255,246,230,.88);
       white-space:nowrap;
-      max-width: 42vw;
+      max-width: 44vw;
       overflow:hidden;
       text-overflow:ellipsis;
     }
-
     #hudBody{
       padding:10px 10px 12px;
       border-top:1px solid rgba(255,255,255,.08);
-      display:none; /* 默认折叠 */
+      display:none;
     }
     #hud.hud-open #hudBody{ display:block; }
 
@@ -106,7 +108,7 @@
       border-radius:12px;
       font-weight:720;
       letter-spacing:.2px;
-      box-shadow: 0 10px 30px rgba(0,0,0,.24);
+      box-shadow: 0 10px 30px rgba(0,0,0,.20);
       transition: transform .12s ease, filter .12s ease;
       font-size:12px;
     }
@@ -144,7 +146,32 @@
       line-height:1.4;
     }
 
-    /* ======= Compact Gate ======= */
+    /* ===== 右上角“呼出菜单”按钮：HUD 隐藏时显示 ===== */
+    #fabMenu{
+      position:absolute;
+      right:10px;
+      top:10px;
+      z-index:11;
+      width:40px;
+      height:40px;
+      border-radius:999px;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      border:1px solid rgba(255,213,122,.18);
+      background: rgba(0,0,0,.28);
+      backdrop-filter: blur(10px);
+      color: rgba(255,246,230,.92);
+      box-shadow: 0 14px 45px rgba(0,0,0,.45);
+      cursor:pointer;
+      user-select:none;
+      font-weight:900;
+      font-size:18px;
+      line-height:1;
+    }
+    #fabMenu.show{ display:flex; }
+
+    /* ===== Gate 更紧凑 ===== */
     #gate{
       position:absolute; inset:0;
       display:flex; align-items:center; justify-content:center;
@@ -180,7 +207,7 @@
     }
     #debugCam canvas{width:100%; height:100%; display:block;}
 
-    /* 错误弹层（保留） */
+    /* 错误弹层 */
     #bootError{
       position:absolute; inset:0;
       display:none;
@@ -213,13 +240,11 @@
       word-break: break-word;
     }
 
-    /* 手机更紧凑 */
     @media (max-width: 520px){
-      #hud{left:8px; top:8px; width:calc(100vw - 16px); border-radius:14px}
-      #hudTitle{max-width: 44vw; font-size:12px}
-      #statusBadge{max-width: 44vw}
+      #hudTitle{max-width: 38vw}
+      #statusBadge{max-width: 48vw}
+      #fabMenu{right:8px; top:8px}
       #debugCam{right:8px; bottom:8px}
-      .btn, label.file{padding:9px 10px}
     }
   </style>
 
@@ -242,35 +267,36 @@
     <canvas id="gl"></canvas>
     <div id="grain"></div>
 
-    <!-- ✅ 更小的 HUD：默认折叠 -->
-    <div id="hud" class="hud-closed">
+    <!-- HUD -->
+    <div id="hud" class="hud-open">
       <div id="hudHeader">
         <span class="dot"></span>
         <div id="hudTitle">🎄 Hand Tree</div>
-        <div class="badge" id="statusBadge">STATE: CONE · G: — · CAM: OFF · P: 0</div>
-        <button class="btn tiny" id="hudToggle">展开</button>
+        <div class="badge" id="statusBadge">S:CONE · G:— · CAM:OFF · P:0</div>
+        <button class="btn tiny" id="hudToggle">收起</button>
       </div>
-
       <div id="hudBody">
         <div class="row">
-          <button class="btn" id="startBtn">开始</button>
+          <button class="btn" id="startBtn">开始(摄像头)</button>
           <button class="btn secondary" id="watchBtn">仅观看</button>
           <label class="file" for="photosInput">上传
             <input id="photosInput" type="file" accept="image/*" multiple />
           </label>
           <button class="btn secondary" id="toggleDebug">调试</button>
         </div>
-        <div id="hudHint">手势：握拳=合拢｜张开=散开｜捏合=放大</div>
+        <div id="hudHint">握拳=合拢｜张开=散开｜捏合=放大</div>
       </div>
     </div>
 
+    <!-- 右上角呼出按钮 -->
+    <div id="fabMenu" aria-label="Open menu">☰</div>
+
     <div id="debugCam"><canvas id="debug2d"></canvas></div>
 
-    <!-- ✅ 更小的 Gate -->
     <div id="gate">
       <div class="card">
         <h1>🎄 手势圣诞树</h1>
-        <p>点“开始”启用手势；点“仅观看”直接看效果。</p>
+        <p>开始后 UI 会自动隐藏，右上角 ☰ 可呼出菜单。</p>
         <div class="actions">
           <button class="btn" id="gateStart">开始</button>
           <button class="btn secondary" id="gateNoCam">仅观看</button>
@@ -292,16 +318,41 @@
     <video id="video" playsinline muted style="display:none"></video>
   </div>
 
+  <!-- UI 控制（不涉及 three） -->
   <script>
-    // HUD 折叠/展开（纯 UI，不影响渲染）
     const hud = document.getElementById("hud");
     const hudToggle = document.getElementById("hudToggle");
-    let hudOpen = false;
+    const fabMenu = document.getElementById("fabMenu");
+
+    function hideHud(){
+      hud.classList.add("hud-hidden");
+      fabMenu.classList.add("show");
+    }
+    function showHud(){
+      hud.classList.remove("hud-hidden");
+      fabMenu.classList.remove("show");
+    }
+    function setHudOpen(open){
+      hud.classList.toggle("hud-open", open);
+      hudToggle.textContent = open ? "收起" : "展开";
+    }
+
+    // 头部按钮只负责折叠（不隐藏）
+    let hudOpen = true;
     hudToggle.addEventListener("click", ()=>{
       hudOpen = !hudOpen;
-      hud.classList.toggle("hud-open", hudOpen);
-      hudToggle.textContent = hudOpen ? "收起" : "展开";
+      setHudOpen(hudOpen);
     });
+
+    // 右上角 ☰：显示 HUD 并自动展开
+    fabMenu.addEventListener("click", ()=>{
+      showHud();
+      hudOpen = true;
+      setHudOpen(true);
+    });
+
+    // 暴露给 module 里调用：点击开始后自动隐藏 HUD
+    window.__UI__ = { hideHud, showHud, setHudOpen };
   </script>
 
   <script type="module">
@@ -311,14 +362,13 @@
     import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
     import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 
-    // ========= 下面基本保持你可用版本，只改 badge 显示更短 =========
     const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
     const damp = (a, b, lambda, dt) => THREE.MathUtils.damp(a, b, lambda, dt);
 
     const STATE = { CONE:"CONE", SCATTER:"SCATTER", PHOTO:"PHOTO" };
     let state = STATE.CONE;
     let selectedPhoto = null;
-    let camState = "OFF"; // OFF/REQ/ON/DENIED/ERR
+    let camState = "OFF";
 
     const badge = document.getElementById("statusBadge");
     function setBadge(gestureLabel="—"){
@@ -332,6 +382,8 @@
       bootErrorMsg.textContent = msg;
       bootErrorDetail.textContent = detail || "";
       bootError.style.display = "flex";
+      // 出错时把 HUD 叫回来方便操作
+      window.__UI__?.showHud?.();
     }
 
     const canvas = document.getElementById("gl");
@@ -375,9 +427,7 @@
 
     const bloom = new UnrealBloomPass(
       new THREE.Vector2(innerWidth, innerHeight),
-      0.55,
-      0.55,
-      0.28
+      0.55, 0.55, 0.28
     );
     composer.addPass(bloom);
 
@@ -683,7 +733,7 @@
 
     const DEFAULT_PHOTO_URLS = Array.from({length:8}, (_,i)=>`./pic${i+1}.jpg`);
 
-    function makeProceduralPhoto(i){
+    function makeProceduralPhoto(){
       const c = document.createElement("canvas");
       c.width = 512; c.height = 640;
       const g = c.getContext("2d");
@@ -699,13 +749,6 @@
         const a = 0.05 + Math.random()*0.10;
         g.fillStyle = `rgba(255,213,122,${a})`;
         g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill();
-      }
-      g.globalCompositeOperation = "source-over";
-      for(let k=0;k<140;k++){
-        const x = Math.random()*512, y = Math.random()*640;
-        const s = Math.random()*2.2;
-        g.fillStyle = `rgba(255,246,230,${0.15+Math.random()*0.35})`;
-        g.beginPath(); g.arc(x,y,s,0,Math.PI*2); g.fill();
       }
       const tex = new THREE.CanvasTexture(c);
       tex.colorSpace = THREE.SRGBColorSpace;
@@ -759,7 +802,7 @@
     async function preloadDefaultPhotos(){
       const holders = [];
       for(let i=0;i<DEFAULT_PHOTO_URLS.length;i++){
-        holders.push(addPhotoTexture(makeProceduralPhoto(i)));
+        holders.push(addPhotoTexture(makeProceduralPhoto()));
       }
       for(let i=0;i<DEFAULT_PHOTO_URLS.length;i++){
         try{
@@ -853,6 +896,7 @@
       debugWrap.style.display = debugOn ? "block" : "none";
     });
 
+    // mediapipe
     const video = document.getElementById("video");
     let mpCamera = null;
     let mpHands = null;
@@ -1143,6 +1187,7 @@
       requestAnimationFrame(tick);
     }
 
+    // ===== 启动：点击开始后自动隐藏 HUD =====
     const gate = document.getElementById("gate");
     const gateStart = document.getElementById("gateStart");
     const gateNoCam = document.getElementById("gateNoCam");
@@ -1154,6 +1199,9 @@
     async function start(withCamera=true){
       try{
         gate.style.display = "none";
+
+        // ✅ 开始就隐藏 HUD（你想“仅观看”不隐藏的话，把下面 if(withCamera) 包起来即可）
+        window.__UI__?.hideHud?.();
 
         if(!started){
           await preloadDefaultPhotos();
